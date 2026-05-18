@@ -134,6 +134,29 @@ export interface UserProfile {
   updatedAt: any;
 }
 
+export type LeagueType = 'Round Robin' | 'Knockout' | 'Group Stage + Knockout' | 'Custom';
+
+export interface MatchRules {
+  overCount: number;
+  pointsForWin: number;
+  pointsForTie: number;
+  pointsForNR: number;
+  homeAway: boolean;
+}
+
+export interface League {
+  id: string;
+  name: string;
+  type: LeagueType;
+  teamCount: number;
+  rules: MatchRules;
+  seasonName: string;
+  status: 'draft' | 'active' | 'completed';
+  userId: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
 export interface Tournament {
   id: string;
   userId: string;

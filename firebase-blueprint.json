@@ -98,6 +98,18 @@
     "users/{userId}": {
       "schema": "User",
       "description": "User profile data"
+    },
+    "leagues/{leagueId}": {
+      "schema": "League",
+      "description": "League data"
+    },
+    "leagues/{leagueId}/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Teams within a specific league"
+    },
+    "leagues/{leagueId}/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Matches within a specific league"
     }
   }
 }

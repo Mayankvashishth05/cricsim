@@ -28,17 +28,19 @@ import MatchSimulator from './components/matches/MatchSimulator';
 import SettingsComponent from './components/settings/Settings';
 import Archive from './components/archive/SeasonArchive';
 import Profile from './components/profile/Profile';
+import LeagueDashboard from './components/league/LeagueDashboard';
 
-type Tab = 'dashboard' | 'teams' | 'squad' | 'fixtures' | 'results' | 'simulate' | 'settings' | 'archive' | 'profile';
+type Tab = 'dashboard' | 'leagues' | 'teams' | 'squad' | 'fixtures' | 'results' | 'simulate' | 'settings' | 'archive' | 'profile';
 
 export default function App() {
   const { user, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [activeTab, setActiveTab] = useState<Tab>('leagues');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'archive', label: 'Hall of Fame', icon: Trophy },
+    { id: 'leagues', label: 'League Center', icon: Trophy },
+    { id: 'dashboard', label: 'Global Stats', icon: LayoutDashboard },
+    { id: 'archive', label: 'Hall of Fame', icon: Target },
     { id: 'profile', label: 'Command Profile', icon: User },
     { id: 'teams', label: 'Teams', icon: Users },
     { id: 'squad', label: 'Squads', icon: UserCircle },
@@ -166,6 +168,7 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
+              {activeTab === 'leagues' && <LeagueDashboard />}
               {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as Tab)} />}
               {activeTab === 'teams' && <TeamManagement />}
               {activeTab === 'squad' && <SquadManagement />}
