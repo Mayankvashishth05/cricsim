@@ -117,6 +117,15 @@ export default function LeagueDashboard() {
                        <p className={`text-xs font-black uppercase tracking-tight truncate ${activeLeague?.id === league.id ? 'text-yellow-500' : 'text-slate-300'}`}>{league.name}</p>
                        <p className="text-[9px] text-slate-600 font-bold uppercase mt-0.5">{league.teamCount} Teams • {league.type}</p>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteLeague(league.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-rose-500 transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </button>
                 ))
               )}

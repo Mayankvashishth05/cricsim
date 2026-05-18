@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Trophy, 
@@ -13,11 +13,12 @@ import {
   Zap,
   Shield,
   Clock,
-  Target
+  Target,
+  Search
 } from 'lucide-react';
-import { League, LeagueType, MatchRules, Team } from '../../types';
+import { League, LeagueType, MatchRules, Team, Player } from '../../types';
 import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, writeBatch, doc, getDocs, query, where } from 'firebase/firestore';
 import { generateRoundRobinFixtures } from '../../lib/FixtureGenerator';
 import { useAuth } from '../../context/AuthContext';
 
@@ -53,15 +54,39 @@ export default function NewLeagueForm({ onComplete, onCancel }: NewLeagueFormPro
   const [rules, setRules] = useState<MatchRules>(DEFAULT_RULES);
   
   // State for teams
-  const [teams, setTeams] = useState<{ name: string; color: string }[]>([
+  const [teams, setTeams] = useState<{ name: string; color: string; globalId?: string }[]>([
     { name: 'Titans XI', color: '#3b82f6' },
     { name: 'Warriors XI', color: '#ef4444' },
     { name: 'Kings XI', color: '#eab308' },
     { name: 'Royals XI', color: '#a855f7' }
   ]);
 
+  const [globalTeams, setGlobalTeams] = useState<Team[]>([]);
+  const [showGlobalSelector, setShowGlobalSelector] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const fetchGlobalTeams = async () => {
+        try {
+          const q = query(collection(db, 'teams'));
+          const snap = await getDocs(q);
+          setGlobalTeams(snap.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
+        } catch (err) {
+          console.error("Error fetching global teams:", err);
+        }
+      };
+      fetchGlobalTeams();
+    }
+  }, [user]);
+
   const addTeam = () => {
     setTeams([...teams, { name: `Team ${teams.length + 1}`, color: '#94a3b8' }]);
+  };
+
+  const importGlobalTeam = (team: Team) => {
+    if (teams.find(t => t.globalId === team.id)) return;
+    setTeams([...teams, { name: team.name, color: team.color, globalId: team.id }]);
+    setShowGlobalSelector(false);
   };
 
   const removeTeam = (index: number) => {
@@ -114,6 +139,33 @@ export default function NewLeagueForm({ onComplete, onCancel }: NewLeagueFormPro
           nrr: 0,
           createdAt: serverTimestamp()
         });
+
+        // Copy squad if globalId exists
+        if (teamData.globalId) {
+          const squadSnap = await getDocs(collection(db, `teams/${teamData.globalId}/squad`));
+          for (const playerDoc of squadSnap.docs) {
+            const playerRef = doc(collection(db, `leagues/${leagueRef.id}/teams/${teamRef.id}/squad`));
+            batch.set(playerRef, {
+              ...playerDoc.data(),
+              runs: 0,
+              wickets: 0,
+              mvpPoints: 0,
+              "careerStats.matches": 0,
+              "careerStats.innings": 0,
+              "careerStats.runs": 0,
+              "careerStats.balls": 0,
+              "careerStats.wickets": 0,
+              "careerStats.overs": 0,
+              "careerStats.runsConceded": 0,
+              "careerStats.thirties": 0,
+              "careerStats.fifties": 0,
+              "careerStats.hundreds": 0,
+              "careerStats.threeWicketHauls": 0,
+              "careerStats.fiveWicketHauls": 0,
+            });
+          }
+        }
+        
         createdTeamIds.push(teamRef.id);
       }
 
@@ -304,21 +356,63 @@ export default function NewLeagueForm({ onComplete, onCancel }: NewLeagueFormPro
                    <Users className="text-yellow-500" />
                    Team Deployment
                    <span className="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded-full font-black ml-2">{teams.length} Roster</span>
-                </h2>
-                <button 
-                  onClick={addTeam}
-                  className="flex items-center gap-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-black transition-all"
-                >
-                   <Plus size={14} /> Add Division
-                </button>
+                 </h2>
+                 <div className="flex gap-2">
+                    <button 
+                      onClick={() => setShowGlobalSelector(true)}
+                      className="flex items-center gap-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-black transition-all"
+                    >
+                       <Search size={14} /> Import Global
+                    </button>
+                    <button 
+                      onClick={addTeam}
+                      className="flex items-center gap-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-black transition-all"
+                    >
+                       <Plus size={14} /> New Division
+                    </button>
+                 </div>
               </div>
+
+              {showGlobalSelector && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 mb-8"
+                >
+                   <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Select Global Blueprint</h3>
+                      <button onClick={() => setShowGlobalSelector(false)} className="text-[10px] font-black text-slate-600 hover:text-white uppercase tracking-widest">Close</button>
+                   </div>
+                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {globalTeams.map(gt => {
+                        const isAdded = teams.some(t => t.globalId === gt.id);
+                        return (
+                          <button
+                            key={gt.id}
+                            disabled={isAdded}
+                            onClick={() => importGlobalTeam(gt)}
+                            className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${isAdded ? 'bg-slate-800/20 border-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-900 border-slate-800 hover:border-yellow-500/50 text-white'}`}
+                          >
+                             <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-xs font-black" style={{ backgroundColor: gt.color }}>
+                                {gt.name[0]}
+                             </div>
+                             <span className="text-[10px] font-black truncate uppercase">{gt.name}</span>
+                          </button>
+                        );
+                      })}
+                      {globalTeams.length === 0 && (
+                        <p className="col-span-full py-4 text-center text-[10px] font-black text-slate-600 uppercase tracking-widest">No global blueprints detected</p>
+                      )}
+                   </div>
+                </motion.div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {teams.map((team, index) => (
                   <motion.div 
                     layout
                     key={index}
-                    className="bg-[#11151D] border border-slate-800 p-4 rounded-3xl flex items-center gap-4 group hover:border-slate-700 transition-all shadow-lg"
+                    className={`bg-[#11151D] border p-4 rounded-3xl flex items-center gap-4 group transition-all shadow-lg ${team.globalId ? 'border-emerald-500/30' : 'border-slate-800 hover:border-slate-700'}`}
                   >
                     <div className="relative group/color">
                        <div 
@@ -327,21 +421,28 @@ export default function NewLeagueForm({ onComplete, onCancel }: NewLeagueFormPro
                        >
                          {team.name ? team.name[0] : '?'}
                        </div>
-                       <input 
-                         type="color"
-                         value={team.color}
-                         onChange={(e) => updateTeam(index, { color: e.target.value })}
-                         className="absolute inset-0 opacity-0 cursor-pointer"
-                       />
+                       {!team.globalId && (
+                         <input 
+                           type="color"
+                           value={team.color}
+                           onChange={(e) => updateTeam(index, { color: e.target.value })}
+                           className="absolute inset-0 opacity-0 cursor-pointer"
+                         />
+                       )}
                     </div>
                     <div className="flex-1">
-                      <input 
-                        type="text"
-                        value={team.name}
-                        onChange={(e) => updateTeam(index, { name: e.target.value })}
-                        className="w-full bg-transparent text-sm font-bold text-white focus:outline-none focus:border-b border-yellow-500/50"
-                        placeholder="Division Name"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text"
+                          value={team.name}
+                          readOnly={!!team.globalId}
+                          onChange={(e) => updateTeam(index, { name: e.target.value })}
+                          className={`w-full bg-transparent text-sm font-bold text-white focus:outline-none ${!team.globalId && 'focus:border-b border-yellow-500/50'}`}
+                          placeholder="Division Name"
+                        />
+                        {team.globalId && <Shield size={12} className="text-emerald-500" />}
+                      </div>
+                      {team.globalId && <p className="text-[8px] font-black text-emerald-500/50 uppercase tracking-widest mt-1">Imported blueprint</p>}
                     </div>
                     <button 
                       onClick={() => removeTeam(index)}
