@@ -1,0 +1,6 @@
+{
+  "name": "CricSim: Tournament Master",
+  "description": "Professional cricket tournament simulator with team management, player stats, and automated playoffs system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

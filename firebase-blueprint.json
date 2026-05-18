@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "Tournament": {
+      "title": "Tournament",
+      "description": "Global tournament state",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["league", "playoffs", "finished"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "status"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Cricket team details and stats",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "color": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "matches": { "type": "number" },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "ties": { "type": "number" },
+        "noResult": { "type": "number" },
+        "points": { "type": "number" },
+        "nrr": { "type": "number" }
+      },
+      "required": ["name", "color"]
+    },
+    "Player": {
+      "title": "Player",
+      "description": "Player stats and information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Batter", "Bowler", "All-rounder", "Wicketkeeper"] },
+        "runs": { "type": "number" },
+        "wickets": { "type": "number" },
+        "strikeRate": { "type": "number" },
+        "economy": { "type": "number" },
+        "mvpPoints": { "type": "number" }
+      },
+      "required": ["name", "type"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Match fixture and result",
+      "type": "object",
+      "properties": {
+        "team1Id": { "type": "string" },
+        "team2Id": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "completed"] },
+        "toss": { "type": "object" },
+        "innings1": { "type": "object" },
+        "innings2": { "type": "object" },
+        "winnerId": { "type": "string" },
+        "margin": { "type": "string" },
+        "mvpId": { "type": "string" },
+        "matchType": { "type": "string", "enum": ["League", "Qualifier 1", "Eliminator", "Qualifier 2", "Final"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["team1Id", "team2Id", "status"]
+    }
+  },
+  "firestore": {
+    "tournaments/{tournamentId}": {
+      "schema": "Tournament",
+      "description": "Active tournaments"
+    },
+    "tournaments/{tournamentId}/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Teams in a tournament"
+    },
+    "tournaments/{tournamentId}/teams/{teamId}/squad/{playerId}": {
+      "schema": "Player",
+      "description": "Players in a team"
+    },
+    "tournaments/{tournamentId}/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Matches in a tournament"
+    }
+  }
+}

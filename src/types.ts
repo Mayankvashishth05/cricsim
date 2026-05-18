@@ -1,0 +1,118 @@
+export type PlayerType = 'Batter' | 'Bowler' | 'All-rounder' | 'Wicketkeeper';
+
+export interface PlayerStats {
+  matches: number;
+  innings: number;
+  runs: number;
+  balls: number;
+  wickets: number;
+  overs: number;
+  runsConceded: number;
+  highestScore: number;
+  bestBowlingWickets: number;
+  bestBowlingRuns: number;
+  thirties: number;
+  fifties: number;
+  hundreds: number;
+  threeWicketHauls: number;
+  fiveWicketHauls: number;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  type: PlayerType;
+  runs: number;
+  wickets: number;
+  strikeRate: number;
+  economy: number;
+  mvpPoints: number;
+  careerStats?: PlayerStats;
+}
+
+export interface PlayerMatchHistory {
+  matchId: string;
+  date: string;
+  oppositionId: string;
+  batting: {
+    runs: number;
+    balls: number;
+    isOut: boolean;
+  };
+  bowling: {
+    overs: number;
+    runs: number;
+    wickets: number;
+  };
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  color: string;
+  logoUrl?: string;
+  matches: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  noResult: number;
+  points: number;
+  nrr: number;
+}
+
+export interface CommentaryEntry {
+  over: number;
+  ball: number;
+  batsmanId: string;
+  bowlerId: string;
+  runs: number;
+  isWicket: boolean;
+  wicketType?: string;
+  isExtra?: boolean;
+  extraType?: 'wide' | 'no-ball' | 'bye' | 'leg-bye';
+  text: string;
+}
+
+export interface Inning {
+  score: number;
+  wickets: number;
+  overs: number;
+  battingStats: {
+    playerId: string;
+    runs: number;
+    balls: number;
+    isOut: boolean;
+  }[];
+  bowlingStats: {
+    playerId: string;
+    wickets: number;
+    overs: number;
+    runs: number;
+  }[];
+}
+
+export interface Match {
+  id: string;
+  team1Id: string;
+  team2Id: string;
+  status: 'scheduled' | 'completed' | 'in-progress';
+  toss?: {
+    winnerId: string;
+    decision: 'bat' | 'bowl';
+  };
+  innings1?: Inning;
+  innings2?: Inning;
+  commentary?: CommentaryEntry[];
+  winnerId?: string;
+  margin?: string;
+  mvpId?: string;
+  matchType: 'League' | 'Qualifier 1' | 'Eliminator' | 'Qualifier 2' | 'Final';
+}
+
+export interface Tournament {
+  id: string;
+  userId: string;
+  name: string;
+  status: 'league' | 'playoffs' | 'finished';
+  createdAt: string;
+}

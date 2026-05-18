@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primative Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && request.auth.token.email == 'mayank2211005@gmail.com';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Tournament ---
+    function isValidTournament(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.status in ['league', 'playoffs', 'finished'];
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified() && isValidTournament(incoming()) && isValidId(tournamentId);
+      allow update: if (isEmailVerified() && isValidTournament(incoming())) || isAdmin();
+      allow delete: if isAdmin();
+
+      // --- Teams ---
+      function isValidTeam(data) {
+        return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+            && data.color is string && data.color.matches('^#[0-9a-fA-F]{6}$');
+      }
+
+      match /teams/{teamId} {
+        allow read: if isSignedIn();
+        allow create: if isEmailVerified() && isValidTeam(incoming()) && isValidId(teamId);
+        allow update: if (isEmailVerified() && isValidTeam(incoming())) || isAdmin();
+        allow delete: if isAdmin();
+
+        // --- Squad ---
+        function isValidPlayer(data) {
+          return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+              && data.type in ['Batter', 'Bowler', 'All-rounder', 'Wicketkeeper'];
+        }
+
+        match /squad/{playerId} {
+          allow read: if isSignedIn();
+          allow create: if isEmailVerified() && isValidPlayer(incoming()) && isValidId(playerId);
+          allow update: if (isEmailVerified() && isValidPlayer(incoming())) || isAdmin();
+          allow delete: if isAdmin();
+        }
+      }
+
+      // --- Matches ---
+      function isValidMatch(data) {
+        return data.team1Id is string && data.team2Id is string
+            && data.status in ['scheduled', 'completed'];
+      }
+
+      match /matches/{matchId} {
+        allow read: if isSignedIn();
+        allow create: if isEmailVerified() && isValidMatch(incoming()) && isValidId(matchId);
+        allow update: if (isEmailVerified() && isValidMatch(incoming())) || isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
