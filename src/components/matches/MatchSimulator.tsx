@@ -10,8 +10,8 @@ import {
   runTransaction,
   increment
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, auth } from '../../lib/firebase';
-import { Team, Player, Match } from '../../types';
+import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
+import { Team, Player, Match, CommentaryEntry } from '../../types';
 import { Play, RotateCcw, Target, Trophy, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { simulateMatch, calculateNRR } from '../../services/simulation';
@@ -24,14 +24,11 @@ export default function MatchSimulator() {
   const [simulationResult, setSimulationResult] = useState<Partial<Match> | null>(null);
 
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
-
-    const unsubTeams = onSnapshot(query(collection(db, 'teams'), where('userId', '==', userId)), (snap) => {
+    const unsubTeams = onSnapshot(collection(db, 'teams'), (snap) => {
       setTeams(snap.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
     });
     const unsubMatches = onSnapshot(
-      query(collection(db, 'matches'), where('status', '==', 'scheduled'), where('userId', '==', userId)),
+      query(collection(db, 'matches'), where('status', '==', 'scheduled')),
       (snap) => {
         setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() } as Match)));
       }

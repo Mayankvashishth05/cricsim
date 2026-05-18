@@ -18,54 +18,12 @@ import SquadManagement from './components/squad/SquadManagement';
 import FixturesManagement from './components/fixtures/FixturesManagement';
 import MatchSimulator from './components/matches/MatchSimulator';
 import SettingsComponent from './components/settings/Settings';
-import { auth } from './lib/firebase';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 type Tab = 'dashboard' | 'teams' | 'squad' | 'fixtures' | 'simulate' | 'settings';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [user, setUser] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (u) {
-        setIsLoggingIn(false);
-        setLoginError(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
-    
-    const provider = new GoogleAuthProvider();
-    // Force account selection to avoid automatic failures in some iframe scenarios
-    provider.setCustomParameters({ prompt: 'select_account' });
-    
-    setIsLoggingIn(true);
-    setLoginError(null);
-    
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      console.error("Login failed", error);
-      // Handle the specific error with a more helpful message
-      if (error.code === 'auth/popup-closed-by-user') {
-        setLoginError('Login window closed. Please try again and ensure you complete the sign-in process. If this persists, try opening the application in a new tab.');
-      } else if (error.code === 'auth/popup-blocked') {
-        setLoginError('The login popup was blocked by your browser. Please allow popups for this site and try again.');
-      } else {
-        setLoginError(error.message || 'An unexpected error occurred during login. Please try again.');
-      }
-      setIsLoggingIn(false);
-    }
-  };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -75,54 +33,6 @@ export default function App() {
     { id: 'simulate', label: 'Simulate', icon: PlayCircle },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#0B0E14] flex items-center justify-center p-4 selection:bg-yellow-500/30">
-        <div className="max-w-md w-full text-center space-y-8 bg-[#11151D] p-10 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-50" />
-          <div className="flex justify-center">
-            <div className="p-5 bg-yellow-500/10 rounded-2xl border border-yellow-500/20">
-              <Trophy className="w-12 h-12 text-yellow-500" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-4xl font-black text-white tracking-tighter">
-              CRIC<span className="text-yellow-500">SIM</span>
-            </h1>
-            <p className="mt-3 text-slate-400 font-medium leading-relaxed">The ultimate professional cricket tournament simulator.</p>
-          </div>
-
-          {loginError && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl"
-            >
-              <p className="text-xs font-bold text-rose-500 leading-relaxed uppercase tracking-tight">
-                {loginError}
-              </p>
-            </motion.div>
-          )}
-
-          <button
-            onClick={handleLogin}
-            disabled={isLoggingIn}
-            className={`w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-tr from-yellow-500 to-orange-600 text-black font-black rounded-2xl hover:brightness-110 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-orange-500/20 uppercase tracking-widest text-sm ${isLoggingIn ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
-          >
-            {isLoggingIn ? (
-              <>
-                <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              'Get Started'
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-200 flex overflow-hidden font-sans">
@@ -172,29 +82,9 @@ export default function App() {
         </nav>
 
         <div className="p-4 border-t border-slate-800/60 ">
-          <div className="bg-[#1C222D] p-4 rounded-2xl border border-slate-700/30 text-center mb-4">
+          <div className="bg-[#1C222D] p-4 rounded-2xl border border-slate-700/30 text-center">
              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Tournament Status</p>
              {isSidebarOpen && <p className="text-xs font-bold text-yellow-500 mt-1">League Phase Active</p>}
-          </div>
-          
-          <div className="flex items-center gap-3 p-2 group transition-all">
-             <img 
-               src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=eab308&color=000`} 
-               alt="Avatar" 
-               className="w-9 h-9 rounded-xl border-2 border-slate-800 group-hover:border-yellow-500/50 transition-all shadow-lg shadow-black/40"
-               referrerPolicy="no-referrer"
-             />
-             {isSidebarOpen && (
-               <div className="min-w-0 flex-1">
-                 <p className="text-xs font-bold text-white truncate leading-tight tracking-tight">{user.displayName}</p>
-                 <button 
-                  onClick={() => auth.signOut()}
-                  className="text-[10px] text-slate-600 hover:text-rose-500 transition-colors font-black uppercase tracking-widest mt-0.5"
-                 >
-                   Sign Out
-                 </button>
-               </div>
-             )}
           </div>
         </div>
       </aside>

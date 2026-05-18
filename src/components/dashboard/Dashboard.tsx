@@ -3,11 +3,10 @@ import {
   collection, 
   query, 
   onSnapshot, 
-  where,
   orderBy,
   limit 
 } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { db } from '../../lib/firebase';
 import { Team, Player, Match } from '../../types';
 import { Trophy, TrendingUp, Users, Target, Database } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -33,12 +32,9 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
-
-    // Filter by userId for current user's tournament
+    // Show all teams sorted for global standings
     const teamsUnsubscribe = onSnapshot(
-      query(collection(db, 'teams'), where('userId', '==', userId)), 
+      collection(db, 'teams'), 
       (snapshot) => {
         const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
         setTeams(teamsData.sort((a, b) => b.points - a.points || b.nrr - a.nrr));
@@ -48,7 +44,6 @@ export default function Dashboard() {
     const matchesUnsubscribe = onSnapshot(
       query(
         collection(db, 'matches'), 
-        where('userId', '==', userId),
         orderBy('createdAt', 'desc'), 
         limit(5)
       ),

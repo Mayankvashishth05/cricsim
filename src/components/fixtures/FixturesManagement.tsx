@@ -9,11 +9,10 @@ import {
   orderBy,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, auth } from '../../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { Team, Match } from '../../types';
 import { Plus, Trash2, Calendar, Wand2, Upload, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { where } from 'firebase/firestore';
 
 export default function FixturesManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -22,11 +21,8 @@ export default function FixturesManagement() {
   const [isBulkAdding, setIsBulkAdding] = useState(false);
 
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
-
     const unsubscribeTeams = onSnapshot(
-      query(collection(db, 'teams'), where('userId', '==', userId)), 
+      collection(db, 'teams'), 
       (snapshot) => {
         setTeams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team)));
       }
@@ -34,7 +30,6 @@ export default function FixturesManagement() {
     const unsubscribeMatches = onSnapshot(
       query(
         collection(db, 'matches'), 
-        where('userId', '==', userId),
         orderBy('createdAt', 'desc')
       ),
       (snapshot) => {
@@ -49,15 +44,12 @@ export default function FixturesManagement() {
 
   const handleGenerateFixtures = async () => {
     if (teams.length < 2) return alert('Need at least 2 teams');
-    if (!auth.currentUser) return;
     if (!confirm('This will generate round-robin fixtures. Continue?')) return;
 
-    const userId = auth.currentUser.uid;
     for (let i = 0; i < teams.length; i++) {
       for (let j = i + 1; j < teams.length; j++) {
         try {
           await addDoc(collection(db, 'matches'), {
-            userId,
             team1Id: teams[i].id,
             team2Id: teams[j].id,
             status: 'scheduled',
@@ -72,8 +64,6 @@ export default function FixturesManagement() {
   };
 
   const handleBulkAdd = async () => {
-    if (!auth.currentUser) return;
-    const userId = auth.currentUser.uid;
     const lines = bulkInput.split('\n').filter(l => l.trim());
     for (const line of lines) {
       // Expecting: Team1 v/s Team2
@@ -83,7 +73,6 @@ export default function FixturesManagement() {
       
       if (t1 && t2) {
         await addDoc(collection(db, 'matches'), {
-          userId,
           team1Id: t1.id,
           team2Id: t2.id,
           status: 'scheduled',

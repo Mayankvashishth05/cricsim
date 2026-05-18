@@ -6,10 +6,9 @@ import {
   deleteDoc, 
   doc,
   query,
-  orderBy,
-  where
+  orderBy
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, auth } from '../../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { Team, Player, PlayerType, PlayerMatchHistory } from '../../types';
 import { UserPlus, Trash2, Edit2, Upload, Search, ChevronDown, UserCircle, X, Target, History, TrendingUp, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -44,11 +43,7 @@ export default function SquadManagement() {
   }, [selectedPlayer, selectedTeamId]);
 
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
-
-    const q = query(collection(db, 'teams'), where('userId', '==', userId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
       const teamsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
       setTeams(teamsData);
       if (teamsData.length > 0 && !selectedTeamId) {

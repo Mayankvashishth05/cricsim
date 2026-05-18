@@ -7,11 +7,11 @@ import {
   doc, 
   updateDoc 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, auth } from '../../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { Team } from '../../types';
 import { Plus, Trash2, Edit2, Upload, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { query, where } from 'firebase/firestore';
+import { query } from 'firebase/firestore';
 
 export default function TeamManagement() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -21,22 +21,17 @@ export default function TeamManagement() {
   const [isBulkAdding, setIsBulkAdding] = useState(false);
 
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
-
-    const q = query(collection(db, 'teams'), where('userId', '==', userId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
       setTeams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team)));
     });
     return () => unsubscribe();
   }, []);
 
   const handleAddTeam = async () => {
-    if (!newTeam.name || !auth.currentUser) return;
+    if (!newTeam.name) return;
     try {
       await addDoc(collection(db, 'teams'), {
         ...newTeam,
-        userId: auth.currentUser.uid,
         matches: 0,
         wins: 0,
         losses: 0,
@@ -53,7 +48,6 @@ export default function TeamManagement() {
   };
 
   const handleBulkAdd = async () => {
-    if (!auth.currentUser) return;
     const lines = bulkInput.split('\n').filter(l => l.trim());
     for (const line of lines) {
       const name = line.trim();
@@ -61,7 +55,6 @@ export default function TeamManagement() {
       try {
         await addDoc(collection(db, 'teams'), {
           name,
-          userId: auth.currentUser.uid,
           color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
           matches: 0,
           wins: 0,
