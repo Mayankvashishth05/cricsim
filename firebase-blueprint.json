@@ -62,6 +62,20 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["team1Id", "team2Id", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile metadata",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "bio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username"]
     }
   },
   "firestore": {
@@ -80,6 +94,10 @@
     "tournaments/{tournamentId}/matches/{matchId}": {
       "schema": "Match",
       "description": "Matches in a tournament"
+    },
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile data"
     }
   }
 }

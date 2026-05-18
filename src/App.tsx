@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from './context/AuthContext';
+import AuthPage from './components/auth/AuthPage';
 import { 
   LayoutDashboard, 
   Users, 
@@ -11,7 +13,8 @@ import {
   Menu,
   X,
   User,
-  Target
+  Target,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -29,6 +32,7 @@ import Profile from './components/profile/Profile';
 type Tab = 'dashboard' | 'teams' | 'squad' | 'fixtures' | 'results' | 'simulate' | 'settings' | 'archive' | 'profile';
 
 export default function App() {
+  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -47,6 +51,7 @@ export default function App() {
   const [tournamentStatus, setTournamentStatus] = useState('League Phase');
 
   useEffect(() => {
+    if (!user) return;
     const unsub = onSnapshot(collection(db, 'matches'), (snap) => {
       const matches = snap.docs.map(d => d.data() as any);
       if (matches.some(m => m.matchType === 'Final' && m.status === 'completed')) {
@@ -59,6 +64,10 @@ export default function App() {
     });
     return () => unsub();
   }, []);
+
+  if (!user) {
+    return <AuthPage />;
+  }
 
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-200 flex overflow-hidden font-sans">
@@ -135,9 +144,16 @@ export default function App() {
            
            <div className="flex items-center gap-6">
               <div className="hidden sm:flex flex-col text-right">
-                 <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Last Synced</span>
-                 <span className="text-xs font-bold text-slate-300">Just Now</span>
+                 <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Commanding</span>
+                 <span className="text-xs font-bold text-slate-300">{user?.displayName || user?.email}</span>
               </div>
+              <button 
+                onClick={() => signOut()}
+                className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all border border-rose-500/20 shadow-lg shadow-rose-500/5 group"
+                title="Deauthorize Session"
+              >
+                <LogOut size={18} className="group-active:scale-90 transition-transform" />
+              </button>
            </div>
         </header>
 
@@ -150,7 +166,7 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'dashboard' && <Dashboard />}
+              {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as Tab)} />}
               {activeTab === 'teams' && <TeamManagement />}
               {activeTab === 'squad' && <SquadManagement />}
               {activeTab === 'fixtures' && <FixturesManagement />}

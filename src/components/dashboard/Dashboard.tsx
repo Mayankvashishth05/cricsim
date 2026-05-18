@@ -9,12 +9,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Team, Player, Match } from '../../types';
-import { Trophy, TrendingUp, Users, Target, Database, Award } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Target, Database, Award, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { seedSampleData } from '../../lib/SampleData';
 import Scorecard from '../matches/Scorecard';
 
-export default function Dashboard() {
+export default function Dashboard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [topBatters, setTopBatters] = useState<Player[]>([]);
@@ -331,9 +331,16 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Results */}
           <div className="bg-[#151921] rounded-2xl border border-slate-800/60 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-6 tracking-tight">Recent Results</h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-white tracking-tight">Recent Results</h3>
+              <button 
+                onClick={() => onNavigate?.('results')}
+                className="text-[10px] font-black text-yellow-500 uppercase tracking-widest hover:text-yellow-400 transition-colors flex items-center gap-2"
+              >
+                View All Results <ChevronRight size={14} />
+              </button>
+            </div>
             <div className="space-y-4">
               {matches.map((match) => (
                 <div 

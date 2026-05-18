@@ -393,7 +393,7 @@ export default function MatchSimulator() {
                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Player Of Match</span>
                     </div>
                     <span className="text-xs font-black text-white uppercase bg-slate-800 px-3 py-1.5 rounded-lg tracking-widest">
-                       {simulationResult.mvpId?.slice(0, 8)}
+                       {simulationResult.mvpName || simulationResult.mvpId?.slice(0, 8)}
                     </span>
                  </div>
                </motion.div>
