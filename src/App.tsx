@@ -27,20 +27,43 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [user, setUser] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      if (u) {
+        setIsLoggingIn(false);
+        setLoginError(null);
+      }
     });
     return () => unsubscribe();
   }, []);
 
   const handleLogin = async () => {
+    if (isLoggingIn) return;
+    
     const provider = new GoogleAuthProvider();
+    // Force account selection to avoid automatic failures in some iframe scenarios
+    provider.setCustomParameters({ prompt: 'select_account' });
+    
+    setIsLoggingIn(true);
+    setLoginError(null);
+    
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed", error);
+      // Handle the specific error with a more helpful message
+      if (error.code === 'auth/popup-closed-by-user') {
+        setLoginError('The login window was closed before completion. Please try again and keep the window open.');
+      } else if (error.code === 'auth/popup-blocked') {
+        setLoginError('The login popup was blocked by your browser. Please allow popups for this site.');
+      } else {
+        setLoginError(error.message || 'An unexpected error occurred during login.');
+      }
+      setIsLoggingIn(false);
     }
   };
 
@@ -69,11 +92,32 @@ export default function App() {
             </h1>
             <p className="mt-3 text-slate-400 font-medium leading-relaxed">The ultimate professional cricket tournament simulator.</p>
           </div>
+
+          {loginError && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl"
+            >
+              <p className="text-xs font-bold text-rose-500 leading-relaxed uppercase tracking-tight">
+                {loginError}
+              </p>
+            </motion.div>
+          )}
+
           <button
             onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-tr from-yellow-500 to-orange-600 text-black font-black rounded-2xl hover:brightness-110 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-orange-500/20 uppercase tracking-widest text-sm"
+            disabled={isLoggingIn}
+            className={`w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-tr from-yellow-500 to-orange-600 text-black font-black rounded-2xl hover:brightness-110 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-orange-500/20 uppercase tracking-widest text-sm ${isLoggingIn ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
           >
-            Get Started
+            {isLoggingIn ? (
+              <>
+                <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Get Started'
+            )}
           </button>
         </div>
       </div>
