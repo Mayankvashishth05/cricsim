@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  User
+  User,
+  Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, onSnapshot } from 'firebase/firestore';
@@ -19,12 +20,13 @@ import Dashboard from './components/dashboard/Dashboard';
 import TeamManagement from './components/teams/TeamManagement';
 import SquadManagement from './components/squad/SquadManagement';
 import FixturesManagement from './components/fixtures/FixturesManagement';
+import MatchResults from './components/matches/MatchResults';
 import MatchSimulator from './components/matches/MatchSimulator';
 import SettingsComponent from './components/settings/Settings';
 import Archive from './components/archive/SeasonArchive';
 import Profile from './components/profile/Profile';
 
-type Tab = 'dashboard' | 'teams' | 'squad' | 'fixtures' | 'simulate' | 'settings' | 'archive' | 'profile';
+type Tab = 'dashboard' | 'teams' | 'squad' | 'fixtures' | 'results' | 'simulate' | 'settings' | 'archive' | 'profile';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -37,6 +39,7 @@ export default function App() {
     { id: 'teams', label: 'Teams', icon: Users },
     { id: 'squad', label: 'Squads', icon: UserCircle },
     { id: 'fixtures', label: 'Fixtures', icon: Calendar },
+    { id: 'results', label: 'Results', icon: Target },
     { id: 'simulate', label: 'Simulate', icon: PlayCircle },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -151,6 +154,7 @@ export default function App() {
               {activeTab === 'teams' && <TeamManagement />}
               {activeTab === 'squad' && <SquadManagement />}
               {activeTab === 'fixtures' && <FixturesManagement />}
+              {activeTab === 'results' && <MatchResults />}
               {activeTab === 'simulate' && <MatchSimulator />}
               {activeTab === 'settings' && <SettingsComponent />}
               {activeTab === 'archive' && <Archive />}

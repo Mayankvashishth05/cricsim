@@ -10,8 +10,9 @@ import {
 import { db } from '../../lib/firebase';
 import { Team, Player, Match } from '../../types';
 import { Trophy, TrendingUp, Users, Target, Database } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { seedSampleData } from '../../lib/SampleData';
+import Scorecard from '../matches/Scorecard';
 
 export default function Dashboard() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [topBowlers, setTopBowlers] = useState<Player[]>([]);
   const [isSeeding, setIsSeeding] = useState(false);
   const [playoffMatches, setPlayoffMatches] = useState<Match[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   const handleSeed = async () => {
     setIsSeeding(true);
@@ -332,7 +334,11 @@ export default function Dashboard() {
             <h3 className="text-lg font-bold text-white mb-6 tracking-tight">Recent Results</h3>
             <div className="space-y-4">
               {matches.map((match) => (
-                <div key={match.id} className="bg-[#0B0E14] p-5 rounded-2xl border border-slate-800/50 flex items-center justify-between group hover:border-slate-700 transition-all">
+                <div 
+                  key={match.id} 
+                  onClick={() => match.status === 'completed' && setSelectedMatch(match)}
+                  className={`bg-[#0B0E14] p-5 rounded-2xl border border-slate-800/50 flex items-center justify-between group transition-all ${match.status === 'completed' ? 'hover:border-yellow-500/30 cursor-pointer' : ''}`}
+                >
                   <div className="flex flex-col gap-2 flex-1">
                     <div className="flex items-center justify-between pr-8">
                        <span className="font-bold text-slate-400 text-xs uppercase tracking-wide">
@@ -439,6 +445,15 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <AnimatePresence>
+        {selectedMatch && (
+          <Scorecard 
+            match={selectedMatch} 
+            teams={teams} 
+            onClose={() => setSelectedMatch(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

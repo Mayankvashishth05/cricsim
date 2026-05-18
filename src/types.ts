@@ -106,6 +106,7 @@ export interface Match {
   winnerId?: string;
   margin?: string;
   mvpId?: string;
+  mvpName?: string;
   matchType: 'League' | 'Qualifier 1' | 'Eliminator' | 'Qualifier 2' | 'Final';
 }
 

@@ -119,7 +119,7 @@ export function simulateMatch(team1: Team, team2: Team, squad1: Player[], squad2
     return {
       score,
       wickets,
-      overs: Math.floor(totalBalls / 10), // Simple over count for now
+      overs: parseFloat(`${Math.floor(totalBalls / 6)}.${totalBalls % 6}`),
       battingStats: battingStats.filter(s => s.balls > 0),
       bowlingStats: bowlingStats.filter(s => s.overs > 0 || s.runs > 0)
     };
@@ -145,12 +145,14 @@ export function simulateMatch(team1: Team, team2: Team, squad1: Player[], squad2
   const getMVP = () => {
     let bestScore = -1;
     let mvpId = '';
+    let mvpName = '';
     
     [...innings1.battingStats, ...innings2.battingStats].forEach(s => {
       const score = s.runs * 1 + (s.isOut ? 0 : 10);
       if (score > bestScore) {
         bestScore = score;
         mvpId = s.playerId;
+        mvpName = [...squad1, ...squad2].find(p => p.id === s.playerId)?.name || 'Unknown';
       }
     });
 
@@ -159,11 +161,14 @@ export function simulateMatch(team1: Team, team2: Team, squad1: Player[], squad2
       if (score > bestScore) {
         bestScore = score;
         mvpId = s.playerId;
+        mvpName = [...squad1, ...squad2].find(p => p.id === s.playerId)?.name || 'Unknown';
       }
     });
 
-    return mvpId;
+    return { mvpId, mvpName };
   };
+
+  const { mvpId, mvpName } = getMVP();
 
   return {
     status: 'completed',
@@ -176,7 +181,8 @@ export function simulateMatch(team1: Team, team2: Team, squad1: Player[], squad2
     commentary: allCommentary,
     winnerId,
     margin,
-    mvpId: getMVP()
+    mvpId,
+    mvpName
   };
 }
 

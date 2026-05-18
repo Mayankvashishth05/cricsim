@@ -114,19 +114,26 @@ export default function MatchSimulator() {
         }
 
         // Update All Players Stats
+        const battingFirstId = (result.toss!.winnerId === match.team1Id && result.toss!.decision === 'bat') || 
+                              (result.toss!.winnerId === match.team2Id && result.toss!.decision === 'bowl') 
+                              ? match.team1Id : match.team2Id;
+        const bowlingFirstId = battingFirstId === match.team1Id ? match.team2Id : match.team1Id;
+        const squadBattingFirst = battingFirstId === match.team1Id ? squad1 : squad2;
+        const squadBowlingFirst = bowlingFirstId === match.team1Id ? squad1 : squad2;
+
         const allInningsStats = [
-          { teamId: match.team1Id, inn: result.innings1!, squad: squad1, oppId: match.team2Id },
-          { teamId: match.team2Id, inn: result.innings2!, squad: squad2, oppId: match.team1Id }
+          { teamId: battingFirstId, inn: result.innings1!, squad: squadBattingFirst, oppId: bowlingFirstId },
+          { teamId: bowlingFirstId, inn: result.innings2!, squad: squadBowlingFirst, oppId: battingFirstId }
         ];
 
         for (const { teamId, inn, squad, oppId } of allInningsStats) {
-          // Batting Updates
+          // Batting Updates (Updates players in teamId's squad)
           for (const s of inn.battingStats) {
             const playerRef = doc(db, `teams/${teamId}/squad`, s.playerId);
             const player = squad.find(p => p.id === s.playerId);
             const historyRef = doc(collection(db, `teams/${teamId}/squad/${s.playerId}/history`));
             
-            // New history log
+            // New history log (Batting side)
             transaction.set(historyRef, {
               matchId: match.id,
               date: new Date().toISOString(),
@@ -149,9 +156,9 @@ export default function MatchSimulator() {
             });
           }
 
-          // Bowling Updates
+          // Bowling Updates (Updates players in oppId's squad)
           for (const s of inn.bowlingStats) {
-            const playerRef = doc(db, `teams/${teamId}/squad`, s.playerId);
+            const playerRef = doc(db, `teams/${oppId}/squad`, s.playerId);
             transaction.update(playerRef, {
               wickets: increment(s.wickets),
               mvpPoints: increment(s.wickets * 20),
