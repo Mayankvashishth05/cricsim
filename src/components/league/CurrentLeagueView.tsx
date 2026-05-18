@@ -35,7 +35,7 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'standings' | 'fixtures' | 'results' | 'stats'>('standings');
+  const [activeTab, setActiveTab] = useState<'standings' | 'fixtures' | 'results' | 'stats' | 'playoffs'>('standings');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulatingMatch, setSimulatingMatch] = useState<Match | null>(null);
@@ -63,7 +63,7 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
 
   const nextMatch = matches.filter(m => m.status === 'scheduled')[0];
   const allLeagueMatchesDone = matches.filter(m => m.matchType === 'League').every(m => m.status === 'completed');
-  const isPlayoffsAvailable = league.phase === 'league' && allLeagueMatchesDone;
+  const isPlayoffsAvailable = (league.phase === 'league' || !league.phase) && allLeagueMatchesDone && matches.length > 0;
   const isLeagueCompleted = league.status === 'completed';
 
   const endSeason = async () => {
@@ -156,6 +156,7 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
     batch.update(leagueRef, { phase: 'playoffs', updatedAt: serverTimestamp() });
     
     await batch.commit();
+    setActiveTab('playoffs');
   };
 
   const simulateRound = async () => {
@@ -301,12 +302,96 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
       <div className="space-y-6">
          <div className="flex items-center gap-8 border-b border-slate-800/60 overflow-x-auto custom-scrollbar">
             <TabButton active={activeTab === 'standings'} onClick={() => setActiveTab('standings')} icon={<BarChart3 size={14} />} label="Standings" />
+            {(league.phase === 'playoffs' || isLeagueCompleted) && (
+               <TabButton active={activeTab === 'playoffs'} onClick={() => setActiveTab('playoffs')} icon={<Flame size={14} />} label="Playoffs" />
+            )}
             <TabButton active={activeTab === 'fixtures'} onClick={() => setActiveTab('fixtures')} icon={<Calendar size={14} />} label="Fixtures" />
             <TabButton active={activeTab === 'results'} onClick={() => setActiveTab('results')} icon={<History size={14} />} label="Results" />
             <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} icon={<Award size={14} />} label="League MVPs" />
          </div>
 
          <AnimatePresence mode="wait">
+            {activeTab === 'playoffs' && (
+               <motion.div 
+                 key="playoffs"
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 exit={{ opacity: 0, y: -10 }}
+                 className="flex flex-col items-center py-12 space-y-20"
+               >
+                  {/* Playoff Bracket Visualization */}
+                  <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                     
+                     {/* Quarter/Semi Round (Q1 & Eliminator) */}
+                     <div className="space-y-12">
+                        <PlayoffMatch 
+                           match={matches.find(m => m.matchType === 'Qualifier 1')} 
+                           teams={teams}
+                           label="Qualifier 1"
+                           sub="Winner to Final"
+                           onSelect={setSelectedMatch}
+                           onSimulate={() => { setSimulatingMatch(matches.find(m => m.matchType === 'Qualifier 1')!); setIsSimulating(true); }}
+                        />
+                        <PlayoffMatch 
+                           match={matches.find(m => m.matchType === 'Eliminator')} 
+                           teams={teams}
+                           label="Eliminator"
+                           sub="Knockout Match"
+                           onSelect={setSelectedMatch}
+                           onSimulate={() => { setSimulatingMatch(matches.find(m => m.matchType === 'Eliminator')!); setIsSimulating(true); }}
+                        />
+                     </div>
+
+                     {/* Qualifier 2 Round */}
+                     <div className="flex justify-center">
+                        <div className="relative group">
+                           <div className="absolute -inset-4 bg-yellow-500/5 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                           <PlayoffMatch 
+                              match={matches.find(m => m.matchType === 'Qualifier 2')} 
+                              teams={teams}
+                              label="Qualifier 2"
+                              sub="Finalist Decider"
+                              onSelect={setSelectedMatch}
+                              onSimulate={() => { setSimulatingMatch(matches.find(m => m.matchType === 'Qualifier 2')!); setIsSimulating(true); }}
+                           />
+                        </div>
+                     </div>
+
+                     {/* The Grand Finale */}
+                     <div className="flex justify-center">
+                        <motion.div 
+                           whileHover={{ scale: 1.05 }}
+                           className="relative"
+                        >
+                           <div className="absolute -inset-8 bg-indigo-500/10 blur-3xl rounded-full animate-pulse" />
+                           <PlayoffMatch 
+                              match={matches.find(m => m.matchType === 'Final')} 
+                              teams={teams}
+                              label="Grand Final"
+                              sub="Championship Sequence"
+                              isHighlight
+                              onSelect={setSelectedMatch}
+                              onSimulate={() => { setSimulatingMatch(matches.find(m => m.matchType === 'Final')!); setIsSimulating(true); }}
+                           />
+                        </motion.div>
+                     </div>
+                  </div>
+
+                  {/* Informational Note */}
+                  <div className="bg-slate-900/50 border border-slate-800/60 p-6 rounded-3xl max-w-2xl text-center">
+                     <div className="flex items-center justify-center gap-3 mb-3 text-yellow-500">
+                        <Info size={16} />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-white">IPL Style Playoff Rules</h4>
+                     </div>
+                     <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                        Qualifier 1 Winner goes to Final. Qualifier 1 Loser plays Qualifier 2. 
+                        Eliminator Winner plays Qualifier 2. Eliminator Loser is out.
+                        Winner of Qualifier 2 meets Qualifier 1 Winner in the Grand Final.
+                     </p>
+                  </div>
+               </motion.div>
+            )}
+
             {activeTab === 'standings' && (
               <motion.div 
                 key="standings"
@@ -555,6 +640,80 @@ function ResultTeam({ team, score, wickets, overs, isWinner }: any) {
              <span className="text-[10px] font-bold text-slate-500">({overs} ov)</span>
           </div>
        </div>
+    </div>
+  );
+}
+
+function PlayoffMatch({ match, teams, label, sub, isHighlight, onSelect, onSimulate }: any) {
+  if (!match) return (
+     <div className="w-full max-w-[280px] bg-slate-900/30 border border-slate-800/40 border-dashed p-6 rounded-[2rem] text-center opacity-40">
+        <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{label}</p>
+        <p className="text-[8px] font-black text-slate-700 uppercase tracking-[0.2em] mt-2 italic">Awaiting Results</p>
+     </div>
+  );
+
+  const t1 = teams.find((t: any) => t.id === match.team1Id);
+  const t2 = teams.find((t: any) => t.id === match.team2Id);
+  const isCompleted = match.status === 'completed';
+
+  return (
+    <div 
+      className={`w-full max-w-[320px] bg-[#11151D] border p-6 rounded-[2rem] shadow-2xl transition-all relative group overflow-hidden ${isHighlight ? 'border-indigo-500/40' : 'border-slate-800/60 hover:border-yellow-500/30'} ${isCompleted ? 'cursor-pointer hover:bg-slate-900/80' : ''}`}
+      onClick={() => isCompleted && onSelect(match)}
+    >
+       <div className="flex items-center justify-between mb-6">
+          <div>
+             <p className={`text-[10px] font-black uppercase tracking-widest ${isHighlight ? 'text-indigo-400' : 'text-slate-600'}`}>{label}</p>
+             <p className="text-[8px] font-black text-slate-700 uppercase tracking-[0.2em] mt-1">{sub}</p>
+          </div>
+          {isCompleted ? <Trophy size={14} className="text-yellow-500" /> : <Calendar size={14} className="text-slate-700" />}
+       </div>
+
+       <div className="space-y-4">
+          <div className={`flex items-center justify-between gap-3 ${isCompleted && match.winnerId !== match.team1Id ? 'opacity-40' : ''}`}>
+             <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] text-white shrink-0" style={{ backgroundColor: t1?.color || '#333' }}>
+                   {t1?.name[0] || '?'}
+                </div>
+                <span className="text-xs font-bold text-white truncate">{t1?.name || 'TBD'}</span>
+             </div>
+             {isCompleted && match.innings1 && (
+                <span className="text-[10px] font-black text-white">{match.innings1.score}/{match.innings1.wickets}</span>
+             )}
+          </div>
+
+          <div className="flex items-center justify-center relative py-1">
+             <div className="absolute w-full h-[1px] bg-slate-800/40" />
+             <span className="relative z-10 px-3 bg-[#11151D] text-[8px] font-black text-slate-700 uppercase italic">vs</span>
+          </div>
+
+          <div className={`flex items-center justify-between gap-3 ${isCompleted && match.winnerId !== match.team2Id ? 'opacity-40' : ''}`}>
+             <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] text-white shrink-0" style={{ backgroundColor: t2?.color || '#333' }}>
+                   {t2?.name[0] || '?'}
+                </div>
+                <span className="text-xs font-bold text-white truncate">{t2?.name || 'TBD'}</span>
+             </div>
+             {isCompleted && match.innings2 && (
+                <span className="text-[10px] font-black text-white">{match.innings2.score}/{match.innings2.wickets}</span>
+             )}
+          </div>
+       </div>
+
+       {!isCompleted && match.team1Id !== 'TBD' && match.team2Id !== 'TBD' && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onSimulate(); }}
+            className="w-full mt-6 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-[9px] font-black text-slate-400 hover:text-yellow-500 hover:border-yellow-500/30 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
+          >
+             <Zap size={10} /> Execute Call
+          </button>
+       )}
+
+       {isCompleted && (
+          <div className="mt-4 pt-4 border-t border-slate-800/40 text-center">
+             <p className="text-[8px] font-black text-yellow-500 uppercase tracking-widest">{match.margin}</p>
+          </div>
+       )}
     </div>
   );
 }

@@ -116,6 +116,7 @@ export default function NewLeagueForm({ onComplete, onCancel }: NewLeagueFormPro
         rules,
         seasonName,
         status: 'active',
+        phase: 'league',
         userId: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
