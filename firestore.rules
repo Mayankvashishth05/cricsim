@@ -25,37 +25,31 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    // --- Tournament ---
-    function isValidTournament(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
-          && data.status in ['league', 'playoffs', 'finished'];
+    // --- Global Access (Public) ---
+    match /teams/{teamId} {
+      allow read, write: if true;
+      match /squad/{playerId} {
+        allow read, write: if true;
+        match /history/{historyId} {
+          allow read, write: if true;
+        }
+      }
+    }
+
+    match /matches/{matchId} {
+      allow read, write: if true;
     }
 
     match /tournaments/{tournamentId} {
-      allow read: if isSignedIn();
-      allow create: if isEmailVerified() && isValidTournament(incoming()) && isValidId(tournamentId);
-      allow update: if (isEmailVerified() && isValidTournament(incoming())) || isAdmin();
-      allow delete: if isAdmin();
-
+      allow read, write: if true;
       match /teams/{teamId} {
-        allow read: if isSignedIn();
-        allow create: if isEmailVerified() && isValidId(teamId);
-        allow update: if isEmailVerified() || isAdmin();
-        allow delete: if isAdmin();
-
+        allow read, write: if true;
         match /squad/{playerId} {
-          allow read: if isSignedIn();
-          allow create: if isEmailVerified() && isValidId(playerId);
-          allow update: if isEmailVerified() || isAdmin();
-          allow delete: if isAdmin();
+          allow read, write: if true;
         }
       }
-
       match /matches/{matchId} {
-        allow read: if isSignedIn();
-        allow create: if isEmailVerified() && isValidId(matchId);
-        allow update: if isEmailVerified() || isAdmin();
-        allow delete: if isAdmin();
+        allow read, write: if true;
       }
     }
   }
