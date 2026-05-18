@@ -95,7 +95,12 @@ export interface Match {
   id: string;
   team1Id: string;
   team2Id: string;
-  status: 'scheduled' | 'completed' | 'in-progress';
+  status: 'scheduled' | 'live' | 'completed' | 'abandoned';
+  matchType: 'League' | 'Qualifier 1' | 'Eliminator' | 'Qualifier 2' | 'Semi-Final' | 'Final';
+  phase?: 'league' | 'playoffs';
+  result?: string;
+  winnerId?: string;
+  margin?: string;
   toss?: {
     winnerId: string;
     decision: 'bat' | 'bowl';
@@ -103,11 +108,9 @@ export interface Match {
   innings1?: Inning;
   innings2?: Inning;
   commentary?: CommentaryEntry[];
-  winnerId?: string;
-  margin?: string;
   mvpId?: string;
   mvpName?: string;
-  matchType: 'League' | 'Qualifier 1' | 'Eliminator' | 'Qualifier 2' | 'Final';
+  createdAt?: any;
 }
 
 export interface Season {
@@ -151,7 +154,10 @@ export interface League {
   teamCount: number;
   rules: MatchRules;
   seasonName: string;
-  status: 'draft' | 'active' | 'completed';
+  status: 'active' | 'completed' | 'archived';
+  phase: 'league' | 'playoffs';
+  winnerTeamId?: string;
+  winnerTeamName?: string;
   userId: string;
   createdAt: any;
   updatedAt: any;

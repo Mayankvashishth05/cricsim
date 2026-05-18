@@ -51,23 +51,16 @@ service cloud.firestore {
 
     // --- New League Structure ---
     match /leagues/{leagueId} {
-      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Allow read if signed in and owner
+      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       
-      match /teams/{teamId} {
-        allow read, write: if isSignedIn() && get(/databases/$(database)/documents/leagues/$(leagueId)).data.userId == request.auth.uid;
-        
-        match /squad/{playerId} {
-          allow read, write: if isSignedIn() && get(/databases/$(database)/documents/leagues/$(leagueId)).data.userId == request.auth.uid;
-          
-          match /history/{historyId} {
-            allow read, write: if isSignedIn() && get(/databases/$(database)/documents/leagues/$(leagueId)).data.userId == request.auth.uid;
-          }
-        }
-      }
-      
-      match /matches/{matchId} {
-        allow read, write: if isSignedIn() && get(/databases/$(database)/documents/leagues/$(leagueId)).data.userId == request.auth.uid;
+      // Subcollections: Teams, Matches, Squads
+      // Using a recursive wildcard for all descendants to ensure consistent ownership check
+      match /{allChildren=**} {
+        allow read, write: if isSignedIn() && 
+          get(/databases/$(database)/documents/leagues/$(leagueId)).data.userId == request.auth.uid;
       }
     }
 

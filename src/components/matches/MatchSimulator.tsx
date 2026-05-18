@@ -108,6 +108,20 @@ export default function MatchSimulator({ onClose, matchId, leagueId }: MatchSimu
       const team1 = teams.find(t => t.id === match.team1Id)!;
       const team2 = teams.find(t => t.id === match.team2Id)!;
 
+      // Check for playoff placeholders before transaction
+      let q2PlaceholderId = null;
+      let finalPlaceholderId = null;
+      if (leagueId && match.phase === 'playoffs') {
+         const matchesRef = collection(db, `leagues/${leagueId}/matches`);
+         if (match.matchType === 'Eliminator') {
+            const q2Snap = await getDocs(query(matchesRef, where('matchType', '==', 'Qualifier 2'), where('status', '==', 'scheduled')));
+            if (!q2Snap.empty) q2PlaceholderId = q2Snap.docs[0].id;
+         } else if (match.matchType === 'Qualifier 2') {
+            const finalSnap = await getDocs(query(matchesRef, where('matchType', '==', 'Final'), where('status', '==', 'scheduled')));
+            if (!finalSnap.empty) finalPlaceholderId = finalSnap.docs[0].id;
+         }
+      }
+
       // 2. Run simulation
       const result = simulateMatch(team1, team2, squad1, squad2);
       
@@ -155,6 +169,41 @@ export default function MatchSimulator({ onClose, matchId, leagueId }: MatchSimu
             points: winnerId === team2.id ? increment(rulesPointsWin) : increment(0),
             nrr: nrr2
           });
+        }
+
+        // Playoff progression
+        if (leagueId && match.phase === 'playoffs') {
+          const loserId = winnerId === match.team1Id ? match.team2Id : match.team1Id;
+          const matchesRef = collection(db, `leagues/${leagueId}/matches`);
+
+          if (match.matchType === 'Qualifier 1') {
+            // Next: Final and Q2 placeholders
+            const finalRef = doc(matchesRef);
+            transaction.set(finalRef, {
+              team1Id: winnerId,
+              team2Id: 'TBD',
+              status: 'scheduled',
+              matchType: 'Final',
+              phase: 'playoffs',
+              createdAt: new Date()
+            });
+
+            const q2Ref = doc(matchesRef);
+            transaction.set(q2Ref, {
+              team1Id: loserId,
+              team2Id: 'TBD',
+              status: 'scheduled',
+              matchType: 'Qualifier 2',
+              phase: 'playoffs',
+              createdAt: new Date()
+            });
+          } else if (match.matchType === 'Eliminator' && q2PlaceholderId) {
+             const q2Ref = doc(db, `leagues/${leagueId}/matches`, q2PlaceholderId);
+             transaction.update(q2Ref, { team2Id: winnerId });
+          } else if (match.matchType === 'Qualifier 2' && finalPlaceholderId) {
+             const finalRef = doc(db, `leagues/${leagueId}/matches`, finalPlaceholderId);
+             transaction.update(finalRef, { team2Id: winnerId });
+          }
         }
 
         // Update All Players Stats

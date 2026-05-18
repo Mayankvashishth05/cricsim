@@ -30,6 +30,7 @@ export default function LeagueDashboard() {
   const [activeLeague, setActiveLeague] = useState<League | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
 
   useEffect(() => {
     if (!user) return;
@@ -44,7 +45,6 @@ export default function LeagueDashboard() {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as League));
       setLeagues(data);
       if (data.length > 0 && !activeLeague) {
-        // Find if there's an active one, otherwise default to first
         const active = data.find(l => l.status === 'active') || data[0];
         setActiveLeague(active);
       }
@@ -86,7 +86,7 @@ export default function LeagueDashboard() {
     <div className="h-full flex flex-col md:flex-row overflow-hidden bg-[#0B0E14]">
       {/* Sidebar - League List */}
       <div className="w-full md:w-80 bg-[#11151D] border-r border-slate-800/60 flex flex-col shrink-0">
-        <div className="p-6 border-b border-slate-800/60">
+        <div className="p-6 border-b border-slate-800/60 flex-1 flex flex-col overflow-hidden">
            <div className="flex items-center justify-between mb-6">
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Saved Leagues</h2>
               <button 
@@ -96,37 +96,59 @@ export default function LeagueDashboard() {
                 <Plus size={16} />
               </button>
            </div>
+
+           <div className="flex gap-2 mb-6">
+              <button 
+                onClick={() => setViewMode('active')}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'active' ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/10' : 'bg-slate-900/50 text-slate-500 border border-slate-800'}`}
+              >
+                 Active
+              </button>
+              <button 
+                onClick={() => setViewMode('archived')}
+                className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'archived' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/10' : 'bg-slate-900/50 text-slate-500 border border-slate-800'}`}
+              >
+                 Archive
+              </button>
+           </div>
            
-           <div className="space-y-2">
-              {leagues.length === 0 ? (
+           <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1">
+              {leagues.filter(l => viewMode === 'active' ? l.status !== 'completed' : l.status === 'completed').length === 0 ? (
                 <div className="py-10 text-center border-2 border-dashed border-slate-800 rounded-2xl">
-                   <Trophy className="w-8 h-8 text-slate-800 mx-auto mb-3" />
-                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">No Leagues Active</p>
+                   <Archive className="w-8 h-8 text-slate-800 mx-auto mb-3" />
+                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Empty Storage</p>
                 </div>
               ) : (
-                leagues.map(league => (
-                  <button
+                leagues
+                  .filter(l => viewMode === 'active' ? l.status !== 'completed' : l.status === 'completed')
+                  .map(league => (
+                  <div
                     key={league.id}
                     onClick={() => setActiveLeague(league)}
-                    className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all group ${activeLeague?.id === league.id ? 'bg-yellow-500/10 border border-yellow-500/50' : 'bg-slate-900/50 border border-transparent hover:border-slate-800'}`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && setActiveLeague(league)}
+                    className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all group cursor-pointer ${activeLeague?.id === league.id ? 'bg-yellow-500/10 border border-yellow-500/50' : 'bg-slate-900/50 border border-transparent hover:border-slate-800'}`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${activeLeague?.id === league.id ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'bg-slate-800 text-slate-500'}`}>
-                       <Shield size={18} />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${activeLeague?.id === league.id ? (viewMode === 'active' ? 'bg-yellow-500 text-black' : 'bg-indigo-500 text-white') : 'bg-slate-800 text-slate-500'}`}>
+                       {viewMode === 'active' ? <Shield size={18} /> : <Trophy size={18} />}
                     </div>
                     <div className="text-left flex-1 min-w-0">
-                       <p className={`text-xs font-black uppercase tracking-tight truncate ${activeLeague?.id === league.id ? 'text-yellow-500' : 'text-slate-300'}`}>{league.name}</p>
-                       <p className="text-[9px] text-slate-600 font-bold uppercase mt-0.5">{league.teamCount} Teams • {league.type}</p>
+                       <p className={`text-xs font-black uppercase tracking-tight truncate ${activeLeague?.id === league.id ? (viewMode === 'active' ? 'text-yellow-500' : 'text-indigo-400') : 'text-slate-300'}`}>{league.name}</p>
+                       <p className="text-[9px] text-slate-600 font-bold uppercase mt-0.5">
+                         {viewMode === 'active' ? `${league.teamCount} Teams • ${league.type}` : `Winner: ${league.winnerTeamName || 'N/A'}`}
+                       </p>
                     </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteLeague(league.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-rose-500 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-600 hover:text-rose-500 transition-all focus:opacity-100"
                     >
                       <Trash2 size={14} />
                     </button>
-                  </button>
+                  </div>
                 ))
               )}
            </div>

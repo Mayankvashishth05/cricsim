@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { collection, onSnapshot, query, orderBy, doc, getDocs, writeBatch, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { League, Team, Match, Player } from '../../types';
+import confetti from 'canvas-confetti';
 import { 
   Trophy, 
   Calendar, 
@@ -15,7 +16,10 @@ import {
   Target,
   Award,
   History,
-  Info
+  Info,
+  Flame,
+  CheckCircle2,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import StandingsTable from './StandingsTable';
@@ -44,7 +48,7 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
       handleFirestoreError(error, OperationType.LIST, `leagues/${league.id}/teams`);
     });
 
-    const matchesUnsub = onSnapshot(query(collection(db, `leagues/${league.id}/matches`), orderBy('createdAt', 'desc')), (snap) => {
+    const matchesUnsub = onSnapshot(query(collection(db, `leagues/${league.id}/matches`), orderBy('createdAt', 'asc')), (snap) => {
       setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() } as Match)));
       setLoading(false);
     }, (error) => {
@@ -58,6 +62,101 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
   }, [league.id]);
 
   const nextMatch = matches.filter(m => m.status === 'scheduled')[0];
+  const allLeagueMatchesDone = matches.filter(m => m.matchType === 'League').every(m => m.status === 'completed');
+  const isPlayoffsAvailable = league.phase === 'league' && allLeagueMatchesDone;
+  const isLeagueCompleted = league.status === 'completed';
+
+  const endSeason = async () => {
+    const finalMatch = matches.find(m => m.matchType === 'Final' && m.status === 'completed');
+    if (!finalMatch) {
+      alert("Final match must be completed to end season.");
+      return;
+    }
+
+    const winnerId = finalMatch.winnerId;
+    const winnerTeam = teams.find(t => t.id === winnerId);
+
+    const leagueRef = doc(db, 'leagues', league.id);
+    await updateDoc(leagueRef, {
+      status: 'completed',
+      winnerTeamId: winnerId,
+      winnerTeamName: winnerTeam?.name,
+      updatedAt: serverTimestamp()
+    });
+
+    // Trigger celebration
+    triggerConfetti();
+  };
+
+  const triggerConfetti = () => {
+    const duration = 5 * 1000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: any = setInterval(function() {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+      // since particles fall down, start a bit higher than random
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+      confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+    }, 250);
+  };
+
+  useEffect(() => {
+     if (isLeagueCompleted) {
+        triggerConfetti();
+     }
+  }, [isLeagueCompleted]);
+
+  const startPlayoffs = async () => {
+    if (!isPlayoffsAvailable) return;
+    
+    const sortedTeams = [...teams].sort((a, b) => b.points - a.points || b.nrr - a.nrr);
+    const top4 = sortedTeams.slice(0, 4);
+    
+    if (top4.length < 4) {
+      alert("Need at least 4 teams for playoffs.");
+      return;
+    }
+
+    const batch = writeBatch(db);
+    const leagueRef = doc(db, 'leagues', league.id);
+    
+    // Q1: 1 vs 2
+    const q1Ref = doc(collection(db, `leagues/${league.id}/matches`));
+    batch.set(q1Ref, {
+      team1Id: top4[0].id,
+      team2Id: top4[1].id,
+      status: 'scheduled',
+      matchType: 'Qualifier 1',
+      phase: 'playoffs',
+      createdAt: serverTimestamp()
+    });
+
+    // Eliminator: 3 vs 4
+    const elimRef = doc(collection(db, `leagues/${league.id}/matches`));
+    batch.set(elimRef, {
+      team1Id: top4[2].id,
+      team2Id: top4[3].id,
+      status: 'scheduled',
+      matchType: 'Eliminator',
+      phase: 'playoffs',
+      createdAt: serverTimestamp()
+    });
+
+    batch.update(leagueRef, { phase: 'playoffs', updatedAt: serverTimestamp() });
+    
+    await batch.commit();
+  };
 
   const simulateRound = async () => {
      // Implementation for simulating all scheduled matches in the next round
@@ -70,6 +169,57 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
 
   return (
     <div className="p-6 md:p-10 space-y-10 max-w-7xl mx-auto">
+      {/* Winner Banner */}
+      <AnimatePresence>
+        {isLeagueCompleted && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-emerald-600 rounded-[3rem] p-8 md:p-12 shadow-2xl shadow-indigo-500/20 border border-white/10 text-center"
+          >
+             {/* Decorative Background Elements */}
+             <div className="absolute top-0 left-0 w-full h-full">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/10 blur-[100px] rounded-full" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-400/20 blur-[100px] rounded-full" />
+                <div className="grid grid-cols-8 gap-4 opacity-5 pointer-events-none">
+                   {Array.from({ length: 40 }).map((_, i) => (
+                      <Star key={i} className="text-white scale-75" />
+                   ))}
+                </div>
+             </div>
+
+             <div className="relative z-10 flex flex-col items-center">
+                <motion.div 
+                   animate={{ rotate: [0, -10, 10, -10, 0] }}
+                   transition={{ duration: 4, repeat: Infinity }}
+                   className="w-24 h-24 md:w-32 md:h-32 bg-yellow-400 rounded-full flex items-center justify-center shadow-2xl shadow-yellow-400/40 mb-8 border-8 border-white/20"
+                >
+                   <Trophy size={60} className="text-black" />
+                </motion.div>
+                
+                <h2 className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em] mb-4">Supreme Champion Confirmed</h2>
+                <h3 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter mb-4 drop-shadow-lg">
+                   {league.winnerTeamName}
+                </h3>
+                <p className="text-sm md:text-base font-bold text-white/80 uppercase tracking-widest max-w-md mx-auto leading-relaxed">
+                   Ascended to legendary status in the {league.seasonName} {league.name} sequence
+                </p>
+
+                <div className="flex items-center gap-4 mt-10">
+                   <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
+                      <p className="text-[8px] font-black text-white/40 uppercase tracking-widest mb-1">Season</p>
+                      <p className="text-xs font-black text-white uppercase">{league.seasonName}</p>
+                   </div>
+                   <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
+                      <p className="text-[8px] font-black text-white/40 uppercase tracking-widest mb-1">Status</p>
+                      <p className="text-xs font-black text-white uppercase italic">Immortalized</p>
+                   </div>
+                </div>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header Info */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
          <div>
@@ -81,27 +231,61 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
          </div>
          
          <div className="flex items-center gap-3">
-            <button 
-               onClick={simulateRound}
-               disabled={!nextMatch}
-               className="flex items-center gap-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black px-6 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-yellow-500/20 transition-all transition-all group scale-100 hover:scale-105"
-            >
-               <Zap className="w-4 h-4 group-hover:animate-pulse" />
-               Simulate Round
-            </button>
-            <button 
-               onClick={() => {
-                 if (nextMatch) {
-                    setSimulatingMatch(nextMatch);
-                    setIsSimulating(true);
-                 }
-               }}
-               disabled={!nextMatch}
-               className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest border border-slate-700 transition-all"
-            >
-               <Play className="w-4 h-4" />
-               Play Next
-            </button>
+            {isPlayoffsAvailable && (
+              <button 
+                onClick={startPlayoffs}
+                className="flex items-center gap-3 bg-rose-500 hover:bg-rose-400 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-rose-500/20 transition-all group scale-100 hover:scale-105"
+              >
+                <Flame className="w-4 h-4" />
+                Initiate Playoffs
+              </button>
+            )}
+
+            {league.phase === 'playoffs' && !isLeagueCompleted && matches.find(m => m.matchType === 'Final' && m.status === 'completed') && (
+              <button 
+                onClick={endSeason}
+                className="flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all group scale-100 hover:scale-105"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Grand Finale Deployment
+              </button>
+            )}
+
+            {!isLeagueCompleted && (
+              <>
+                <button 
+                  onClick={simulateRound}
+                  disabled={!nextMatch}
+                  className="flex items-center gap-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black px-6 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-yellow-500/20 transition-all transition-all group scale-100 hover:scale-105"
+                >
+                  <Zap className="w-4 h-4 group-hover:animate-pulse" />
+                  Simulate Round
+                </button>
+                <button 
+                  onClick={() => {
+                    if (nextMatch) {
+                        setSimulatingMatch(nextMatch);
+                        setIsSimulating(true);
+                    }
+                  }}
+                  disabled={!nextMatch}
+                  className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest border border-slate-700 transition-all"
+                >
+                  <Play className="w-4 h-4" />
+                  Play Next
+                </button>
+              </>
+            )}
+            
+            {isLeagueCompleted && (
+              <div className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 px-6 py-3 rounded-2xl">
+                 <Trophy className="text-emerald-500" />
+                 <div>
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Season Concluded</p>
+                    <p className="text-sm font-black text-white uppercase">{league.winnerTeamName} Champions</p>
+                 </div>
+              </div>
+            )}
          </div>
       </div>
 
@@ -193,10 +377,12 @@ export default function CurrentLeagueView({ league }: CurrentLeagueViewProps) {
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
               >
                 {matches.filter(m => m.status !== 'completed').map(match => (
-                   <div key={match.id} className="bg-[#11151D] border border-slate-800/60 p-5 rounded-3xl group hover:border-yellow-500/30 transition-all shadow-xl">
+                   <div key={match.id} className={`bg-[#11151D] border p-5 rounded-3xl group transition-all shadow-xl ${match.phase === 'playoffs' ? 'border-rose-500/20 hover:border-rose-500/50' : 'border-slate-800/60 hover:border-yellow-500/30'}`}>
                       <div className="flex items-center justify-between mb-4">
-                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Scheduled Engagement</span>
-                         <Target size={14} className="text-slate-800 group-hover:text-yellow-500 transition-colors" />
+                         <span className={`text-[9px] font-black uppercase tracking-widest ${match.phase === 'playoffs' ? 'text-rose-500' : 'text-slate-600'}`}>
+                            {match.matchType === 'League' ? 'Scheduled Engagement' : match.matchType}
+                         </span>
+                         <Target size={14} className={`transition-colors ${match.phase === 'playoffs' ? 'text-rose-500/50' : 'text-slate-800 group-hover:text-yellow-500'}`} />
                       </div>
                       <div className="flex items-center justify-between gap-4">
                          <MatchTeamInfo team={teams.find(t => t.id === match.team1Id)!} />
