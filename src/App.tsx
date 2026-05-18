@@ -57,11 +57,11 @@ export default function App() {
       console.error("Login failed", error);
       // Handle the specific error with a more helpful message
       if (error.code === 'auth/popup-closed-by-user') {
-        setLoginError('The login window was closed before completion. Please try again and keep the window open.');
+        setLoginError('Login window closed. Please try again and ensure you complete the sign-in process. If this persists, try opening the application in a new tab.');
       } else if (error.code === 'auth/popup-blocked') {
-        setLoginError('The login popup was blocked by your browser. Please allow popups for this site.');
+        setLoginError('The login popup was blocked by your browser. Please allow popups for this site and try again.');
       } else {
-        setLoginError(error.message || 'An unexpected error occurred during login.');
+        setLoginError(error.message || 'An unexpected error occurred during login. Please try again.');
       }
       setIsLoggingIn(false);
     }
