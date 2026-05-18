@@ -56,7 +56,7 @@ export default function Settings() {
   const handleArchiveAndReset = async (batch: any) => {
     // 1. Get Season Data
     const teamsSnap = await getDocs(collection(db, 'teams'));
-    const teams = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Team))
+    const teamsData = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Team))
       .sort((a, b) => b.points - a.points || b.nrr - a.nrr);
     
     const matchesSnap = await getDocs(collection(db, 'matches'));
@@ -64,45 +64,54 @@ export default function Settings() {
     
     const finalMatch = matches.find(m => m.matchType === 'Final' && m.status === 'completed');
     
-    // Find top players (Orange/Purple Cap)
-    let bestBatter = "N/A";
-    let bestBowler = "N/A";
-    let mvp = "N/A";
+    // Find top players (Orange/Purple Cap/MVP)
+    let allPlayers: Player[] = [];
+    for (const team of teamsData) {
+      const playersSnap = await getDocs(collection(db, `teams/${team.id}/squad`));
+      allPlayers = [...allPlayers, ...playersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Player))];
+    }
+
+    const orangeCapPlayer = [...allPlayers].sort((a, b) => b.runs - a.runs)[0];
+    const purpleCapPlayer = [...allPlayers].sort((a, b) => b.wickets - a.wickets)[0];
+    const mvpPlayer = [...allPlayers].sort((a, b) => (b.mvpPoints || 0) - (a.mvpPoints || 0))[0];
     
-    // We could iterate all players, but let's just use top ones from any team
-    // Simplified for now
     const seasonsSnap = await getDocs(collection(db, 'seasons'));
     const seasonNumber = seasonsSnap.size + 1;
 
     const seasonRef = doc(collection(db, 'seasons'));
     batch.set(seasonRef, {
       seasonNumber,
-      winnerId: finalMatch?.winnerId || teams[0].id,
-      winnerName: teams.find(t => t.id === (finalMatch?.winnerId || teams[0].id))?.name || teams[0].name,
-      runnerUpId: finalMatch ? (finalMatch.winnerId === finalMatch.team1Id ? finalMatch.team2Id : finalMatch.team1Id) : teams[1].id,
-      runnerUpName: teams.find(t => t.id === (finalMatch ? (finalMatch.winnerId === finalMatch.team1Id ? finalMatch.team2Id : finalMatch.team1Id) : teams[1].id))?.name || teams[1].name,
-      topTeams: teams.slice(0, 4).map(t => ({ name: t.name, points: t.points, nrr: t.nrr })),
+      winnerId: finalMatch?.winnerId || teamsData[0].id,
+      winnerName: teamsData.find(t => t.id === (finalMatch?.winnerId || teamsData[0].id))?.name || teamsData[0].name,
+      runnerUpId: finalMatch ? (finalMatch.winnerId === finalMatch.team1Id ? finalMatch.team2Id : finalMatch.team1Id) : teamsData[1]?.id || '',
+      runnerUpName: teamsData.find(t => t.id === (finalMatch ? (finalMatch.winnerId === finalMatch.team1Id ? finalMatch.team2Id : finalMatch.team1Id) : teamsData[1]?.id || ''))?.name || teamsData[1]?.name || 'N/A',
+      topTeams: teamsData.slice(0, 4).map(t => ({ name: t.name, points: t.points, nrr: t.nrr })),
       createdAt: serverTimestamp(),
-      mvpName: "Archive Phase",
-      orangeCapName: "Archive Phase",
-      purpleCapName: "Archive Phase"
+      mvpName: mvpPlayer?.name || "N/A",
+      orangeCapName: orangeCapPlayer?.name || "N/A",
+      purpleCapName: purpleCapPlayer?.name || "N/A"
     });
 
     // 2. Clear matches
     matchesSnap.forEach(d => batch.delete(d.ref));
     
-    // 3. Reset teams
-    teamsSnap.forEach(d => {
-      batch.update(d.ref, {
-        matches: 0,
-        wins: 0,
-        losses: 0,
-        ties: 0,
-        noResult: 0,
-        points: 0,
-        nrr: 0
+    // 3. Reset teams and players
+    for (const teamDoc of teamsSnap.docs) {
+      batch.update(teamDoc.ref, {
+        matches: 0, wins: 0, losses: 0, ties: 0, noResult: 0, points: 0, nrr: 0
       });
-    });
+      
+      const players = await getDocs(collection(db, `teams/${teamDoc.id}/squad`));
+      for (const playerDoc of players.docs) {
+        batch.update(playerDoc.ref, {
+          runs: 0, wickets: 0, mvpPoints: 0,
+          careerStats: {
+            matches: 0, innings: 0, runs: 0, balls: 0, wickets: 0, overs: 0, runsConceded: 0, highestScore: 0,
+            bestBowlingWickets: 0, bestBowlingRuns: 0, thirties: 0, fifties: 0, hundreds: 0, threeWicketHauls: 0, fiveWicketHauls: 0
+          }
+        });
+      }
+    }
   };
 
   const handleDelete = async () => {

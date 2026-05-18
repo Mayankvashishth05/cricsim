@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Team, Player, Match } from '../../types';
-import { Trophy, TrendingUp, Users, Target, Database } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Target, Database, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { seedSampleData } from '../../lib/SampleData';
 import Scorecard from '../matches/Scorecard';
@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [topBatters, setTopBatters] = useState<Player[]>([]);
   const [topBowlers, setTopBowlers] = useState<Player[]>([]);
+  const [topMvp, setTopMvp] = useState<Player[]>([]);
   const [isSeeding, setIsSeeding] = useState(false);
   const [playoffMatches, setPlayoffMatches] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -58,6 +59,7 @@ export default function Dashboard() {
           }
           setTopBatters([...allPlayers].sort((a, b) => b.runs - a.runs).slice(0, 3));
           setTopBowlers([...allPlayers].sort((a, b) => b.wickets - a.wickets).slice(0, 3));
+          setTopMvp([...allPlayers].sort((a, b) => (b.mvpPoints || 0) - (a.mvpPoints || 0)).slice(0, 3));
         };
         fetchPlayers();
       }
@@ -441,6 +443,39 @@ export default function Dashboard() {
                  </div>
                ))}
                {topBowlers.length === 0 && <p className="text-[10px] text-slate-600 p-4 text-center">No bowling data yet</p>}
+             </div>
+          </div>
+
+          {/* Tournament MVP */}
+          <div className="bg-[#151921] rounded-2xl border border-slate-800/60 overflow-hidden shadow-2xl">
+             <div className="p-4 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                   <Award className="w-4 h-4 text-white" />
+                 </div>
+                 <h4 className="font-black text-xs uppercase tracking-widest text-emerald-400">Tournament MVP</h4>
+               </div>
+               <span className="text-[9px] font-black text-slate-600 uppercase">Top 3</span>
+             </div>
+             <div className="p-4 space-y-1">
+               {topMvp.map((p, idx) => (
+                 <div key={idx} className={`flex items-center justify-between p-3 rounded-xl transition-all ${idx === 0 ? 'bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-emerald-500' : 'hover:bg-slate-800/30'}`}>
+                    <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-black text-xs text-slate-300">
+                          {p.name.split(' ').map(n => n[0]).join('')}
+                       </div>
+                       <div>
+                          <p className="text-sm font-bold text-white leading-none">{p.name}</p>
+                          <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1.5">{(p as any).teamName}</p>
+                       </div>
+                    </div>
+                    <div className="text-right">
+                       <span className={`text-lg font-black ${idx === 0 ? 'text-emerald-500' : 'text-slate-300'}`}>{p.mvpPoints}</span>
+                       <p className="text-[9px] font-black text-slate-600 uppercase leading-none">Pts</p>
+                    </div>
+                 </div>
+               ))}
+               {topMvp.length === 0 && <p className="text-[10px] text-slate-600 p-4 text-center">No MVP data yet</p>}
              </div>
           </div>
         </div>
