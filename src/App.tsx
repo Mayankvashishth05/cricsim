@@ -9,17 +9,22 @@ import {
   Trophy,
   ChevronRight,
   Menu,
-  X
+  X,
+  User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from './lib/firebase';
 import Dashboard from './components/dashboard/Dashboard';
 import TeamManagement from './components/teams/TeamManagement';
 import SquadManagement from './components/squad/SquadManagement';
 import FixturesManagement from './components/fixtures/FixturesManagement';
 import MatchSimulator from './components/matches/MatchSimulator';
 import SettingsComponent from './components/settings/Settings';
+import Archive from './components/archive/SeasonArchive';
+import Profile from './components/profile/Profile';
 
-type Tab = 'dashboard' | 'teams' | 'squad' | 'fixtures' | 'simulate' | 'settings';
+type Tab = 'dashboard' | 'teams' | 'squad' | 'fixtures' | 'simulate' | 'settings' | 'archive' | 'profile';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -27,12 +32,30 @@ export default function App() {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'archive', label: 'Hall of Fame', icon: Trophy },
+    { id: 'profile', label: 'Command Profile', icon: User },
     { id: 'teams', label: 'Teams', icon: Users },
     { id: 'squad', label: 'Squads', icon: UserCircle },
     { id: 'fixtures', label: 'Fixtures', icon: Calendar },
     { id: 'simulate', label: 'Simulate', icon: PlayCircle },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+
+  const [tournamentStatus, setTournamentStatus] = useState('League Phase');
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'matches'), (snap) => {
+      const matches = snap.docs.map(d => d.data() as any);
+      if (matches.some(m => m.matchType === 'Final' && m.status === 'completed')) {
+        setTournamentStatus('Tournament Finished');
+      } else if (matches.some(m => m.matchType !== 'League')) {
+        setTournamentStatus('Playoffs Active');
+      } else {
+        setTournamentStatus('League Phase Active');
+      }
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-200 flex overflow-hidden font-sans">
@@ -84,7 +107,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-800/60 ">
           <div className="bg-[#1C222D] p-4 rounded-2xl border border-slate-700/30 text-center">
              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Tournament Status</p>
-             {isSidebarOpen && <p className="text-xs font-bold text-yellow-500 mt-1">League Phase Active</p>}
+             {isSidebarOpen && <p className="text-xs font-bold text-yellow-500 mt-1">{tournamentStatus}</p>}
           </div>
         </div>
       </aside>
@@ -130,6 +153,8 @@ export default function App() {
               {activeTab === 'fixtures' && <FixturesManagement />}
               {activeTab === 'simulate' && <MatchSimulator />}
               {activeTab === 'settings' && <SettingsComponent />}
+              {activeTab === 'archive' && <Archive />}
+              {activeTab === 'profile' && <Profile />}
             </motion.div>
           </AnimatePresence>
         </div>

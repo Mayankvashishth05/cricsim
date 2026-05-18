@@ -40,6 +40,15 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /seasons/{seasonId} {
+      allow read, write: if true;
+    }
+    
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
     match /tournaments/{tournamentId} {
       allow read, write: if true;
       match /teams/{teamId} {

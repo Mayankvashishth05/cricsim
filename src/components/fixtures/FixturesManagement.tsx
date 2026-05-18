@@ -7,11 +7,12 @@ import {
   doc,
   query,
   orderBy,
-  serverTimestamp 
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { Team, Match } from '../../types';
-import { Plus, Trash2, Calendar, Wand2, Upload, X } from 'lucide-react';
+import { Plus, Trash2, Calendar, Wand2, Upload, X, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function FixturesManagement() {
@@ -63,6 +64,78 @@ export default function FixturesManagement() {
     }
   };
 
+  const handleGeneratePlayoffs = async () => {
+    if (teams.length < 4) return alert('Need at least 4 teams for playoffs');
+    const leagueMatches = matches.filter(m => m.matchType === 'League');
+    if (leagueMatches.some(m => m.status !== 'completed')) {
+      return alert('Finish all league matches first');
+    }
+
+    const sortedTeams = [...teams].sort((a, b) => b.points - a.points || b.nrr - a.nrr);
+    const playoffMatches = matches.filter(m => m.matchType !== 'League');
+
+    if (playoffMatches.length === 0) {
+      // Round 1: Q1 and Eliminator
+      if (!confirm(`Schedule Q1 (${sortedTeams[0].name} vs ${sortedTeams[1].name}) and Eliminator (${sortedTeams[2].name} vs ${sortedTeams[3].name})?`)) return;
+      
+      const rounds = [
+        { t1: sortedTeams[0], t2: sortedTeams[1], type: 'Qualifier 1' },
+        { t1: sortedTeams[2], t2: sortedTeams[3], type: 'Eliminator' }
+      ];
+
+      for (const r of rounds) {
+        await addDoc(collection(db, 'matches'), {
+          team1Id: r.t1.id,
+          team2Id: r.t2.id,
+          status: 'scheduled',
+          matchType: r.type,
+          createdAt: serverTimestamp()
+        });
+      }
+    } else {
+      const q1 = matches.find(m => m.matchType === 'Qualifier 1');
+      const el = matches.find(m => m.matchType === 'Eliminator');
+      const q2 = matches.find(m => m.matchType === 'Qualifier 2');
+      const fin = matches.find(m => m.matchType === 'Final');
+
+      if (!q2 && q1?.status === 'completed' && el?.status === 'completed') {
+        // Loser Q1 vs Winner Eliminator
+        const loserQ1Id = q1.winnerId === q1.team1Id ? q1.team2Id : q1.team1Id;
+        const winnerElId = el.winnerId;
+        const t1 = teams.find(t => t.id === loserQ1Id)!;
+        const t2 = teams.find(t => t.id === winnerElId)!;
+
+        if (!confirm(`Schedule Qualifier 2: ${t1.name} vs ${t2.name}?`)) return;
+
+        await addDoc(collection(db, 'matches'), {
+          team1Id: t1.id,
+          team2Id: t2.id,
+          status: 'scheduled',
+          matchType: 'Qualifier 2',
+          createdAt: serverTimestamp()
+        });
+      } else if (!fin && q2?.status === 'completed') {
+        // Winner Q1 vs Winner Q2
+        const winnerQ1Id = q1!.winnerId!;
+        const winnerQ2Id = q2.winnerId!;
+        const t1 = teams.find(t => t.id === winnerQ1Id)!;
+        const t2 = teams.find(t => t.id === winnerQ2Id)!;
+
+        if (!confirm(`Schedule Final: ${t1.name} vs ${t2.name}?`)) return;
+
+        await addDoc(collection(db, 'matches'), {
+          team1Id: t1.id,
+          team2Id: t2.id,
+          status: 'scheduled',
+          matchType: 'Final',
+          createdAt: serverTimestamp()
+        });
+      } else {
+        alert("Completed or pending stages prevent further generation.");
+      }
+    }
+  };
+
   const handleBulkAdd = async () => {
     const lines = bulkInput.split('\n').filter(l => l.trim());
     for (const line of lines) {
@@ -83,6 +156,23 @@ export default function FixturesManagement() {
     }
     setBulkInput('');
     setIsBulkAdding(false);
+  };
+
+  const handlePurgeAll = async () => {
+    if (matches.length === 0) return;
+    if (!confirm('This will delete all fixtures (League and Playoffs). This action is irreversible. Continue?')) return;
+    
+    try {
+      const batch = writeBatch(db);
+      matches.forEach(match => {
+        batch.delete(doc(db, 'matches', match.id));
+      });
+      await batch.commit();
+      alert("All fixtures purged.");
+    } catch (error) {
+      console.error("Scale purge failed", error);
+      alert("Failed to purge fixtures.");
+    }
   };
 
   const handleDeleteMatch = async (id: string) => {
@@ -115,6 +205,22 @@ export default function FixturesManagement() {
             <Wand2 size={16} strokeWidth={3} />
             Auto Sequence
           </button>
+          <button
+            onClick={handleGeneratePlayoffs}
+            className="flex items-center gap-2 px-6 py-3 bg-yellow-600 text-white rounded-2xl transition-all text-[10px] font-black uppercase tracking-widest shadow-xl shadow-yellow-500/20 hover:brightness-110"
+          >
+            <Trophy size={16} strokeWidth={3} />
+            Playoff Forge
+          </button>
+          {matches.length > 0 && (
+            <button
+              onClick={handlePurgeAll}
+              className="flex items-center gap-2 px-6 py-3 bg-rose-950/30 text-rose-500 rounded-2xl border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shadow-xl"
+            >
+              <Trash2 size={16} strokeWidth={3} />
+              Purge All
+            </button>
+          )}
         </div>
       </div>
 

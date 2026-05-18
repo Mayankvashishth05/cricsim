@@ -109,6 +109,30 @@ export interface Match {
   matchType: 'League' | 'Qualifier 1' | 'Eliminator' | 'Qualifier 2' | 'Final';
 }
 
+export interface Season {
+  id: string;
+  seasonNumber: number;
+  winnerId: string;
+  winnerName: string;
+  runnerUpId: string;
+  runnerUpName: string;
+  mvpId: string;
+  mvpName: string;
+  orangeCapName: string;
+  purpleCapName: string;
+  createdAt: any;
+  topTeams: { name: string; points: number; nrr: number }[];
+}
+
+export interface UserProfile {
+  uid: string;
+  username: string;
+  avatarUrl: string;
+  bio: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
 export interface Tournament {
   id: string;
   userId: string;

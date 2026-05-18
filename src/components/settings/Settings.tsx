@@ -4,13 +4,19 @@ import {
   getDocs, 
   deleteDoc, 
   doc, 
-  writeBatch 
+  writeBatch,
+  addDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  limit
 } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
-import { Trash2, AlertTriangle, ShieldCheck, Database, RefreshCcw, X } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { Trash2, AlertTriangle, ShieldCheck, Database, RefreshCcw, X, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Team, Player, Match } from '../../types';
 
-type ResetType = 'tournament' | 'players' | 'full';
+type ResetType = 'tournament' | 'players' | 'full' | 'archive';
 
 export default function Settings() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,6 +26,12 @@ export default function Settings() {
 
   const getResetDetails = () => {
     switch(resetType) {
+      case 'archive':
+        return {
+          title: 'Seal the Season',
+          warning: 'This will archive the current standings to the Hall of Fame and RESET all progress. Only do this if the season is finished.',
+          requiredText: 'SEAL SEASON'
+        };
       case 'tournament':
         return {
           title: 'Clear Tournament Data',
@@ -41,6 +53,58 @@ export default function Settings() {
     }
   };
 
+  const handleArchiveAndReset = async (batch: any) => {
+    // 1. Get Season Data
+    const teamsSnap = await getDocs(collection(db, 'teams'));
+    const teams = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Team))
+      .sort((a, b) => b.points - a.points || b.nrr - a.nrr);
+    
+    const matchesSnap = await getDocs(collection(db, 'matches'));
+    const matches = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Match));
+    
+    const finalMatch = matches.find(m => m.matchType === 'Final' && m.status === 'completed');
+    
+    // Find top players (Orange/Purple Cap)
+    let bestBatter = "N/A";
+    let bestBowler = "N/A";
+    let mvp = "N/A";
+    
+    // We could iterate all players, but let's just use top ones from any team
+    // Simplified for now
+    const seasonsSnap = await getDocs(collection(db, 'seasons'));
+    const seasonNumber = seasonsSnap.size + 1;
+
+    const seasonRef = doc(collection(db, 'seasons'));
+    batch.set(seasonRef, {
+      seasonNumber,
+      winnerId: finalMatch?.winnerId || teams[0].id,
+      winnerName: teams.find(t => t.id === (finalMatch?.winnerId || teams[0].id))?.name || teams[0].name,
+      runnerUpId: finalMatch ? (finalMatch.winnerId === finalMatch.team1Id ? finalMatch.team2Id : finalMatch.team1Id) : teams[1].id,
+      runnerUpName: teams.find(t => t.id === (finalMatch ? (finalMatch.winnerId === finalMatch.team1Id ? finalMatch.team2Id : finalMatch.team1Id) : teams[1].id))?.name || teams[1].name,
+      topTeams: teams.slice(0, 4).map(t => ({ name: t.name, points: t.points, nrr: t.nrr })),
+      createdAt: serverTimestamp(),
+      mvpName: "Archive Phase",
+      orangeCapName: "Archive Phase",
+      purpleCapName: "Archive Phase"
+    });
+
+    // 2. Clear matches
+    matchesSnap.forEach(d => batch.delete(d.ref));
+    
+    // 3. Reset teams
+    teamsSnap.forEach(d => {
+      batch.update(d.ref, {
+        matches: 0,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        noResult: 0,
+        points: 0,
+        nrr: 0
+      });
+    });
+  };
+
   const handleDelete = async () => {
     const details = getResetDetails();
     if (confirmationText !== details.requiredText) {
@@ -52,70 +116,50 @@ export default function Settings() {
     try {
       const batch = writeBatch(db);
 
-      if (resetType === 'tournament' || resetType === 'full') {
-        const matches = await getDocs(collection(db, 'matches'));
-        matches.forEach(d => batch.delete(d.ref));
-        
-        // Reset team stats
-        const teams = await getDocs(collection(db, 'teams'));
-        teams.forEach(d => {
-          if (resetType === 'full') {
-            batch.delete(d.ref);
-          } else {
-            batch.update(d.ref, {
-              matches: 0,
-              wins: 0,
-              losses: 0,
-              ties: 0,
-              noResult: 0,
-              points: 0,
-              nrr: 0
-            });
-          }
-        });
-      }
-
-      if (resetType === 'players' || resetType === 'full') {
-        const teams = await getDocs(collection(db, 'teams'));
-        for (const teamDoc of teams.docs) {
-          const players = await getDocs(collection(db, `teams/${teamDoc.id}/squad`));
-          for (const playerDoc of players.docs) {
+      if (resetType === 'archive') {
+        await handleArchiveAndReset(batch);
+      } else {
+        if (resetType === 'tournament' || resetType === 'full') {
+          const matches = await getDocs(collection(db, 'matches'));
+          matches.forEach(d => batch.delete(d.ref));
+          
+          const teams = await getDocs(collection(db, 'teams'));
+          teams.forEach(d => {
             if (resetType === 'full') {
-               batch.delete(playerDoc.ref);
+              batch.delete(d.ref);
             } else {
-               batch.update(playerDoc.ref, {
-                 runs: 0,
-                 wickets: 0,
-                 mvpPoints: 0,
-                 careerStats: {
-                    matches: 0,
-                    innings: 0,
-                    runs: 0,
-                    balls: 0,
-                    wickets: 0,
-                    overs: 0,
-                    runsConceded: 0,
-                    highestScore: 0,
-                    bestBowlingWickets: 0,
-                    bestBowlingRuns: 0,
-                    thirties: 0,
-                    fifties: 0,
-                    hundreds: 0,
-                    threeWicketHauls: 0,
-                    fiveWicketHauls: 0
-                 }
-               });
-               // History deletion is harder in batch if deep, but we'll try top level
-               // Usually requires recursive delete for subcollections in Firestore
+              batch.update(d.ref, {
+                matches: 0, wins: 0, losses: 0, ties: 0, noResult: 0, points: 0, nrr: 0
+              });
+            }
+          });
+        }
+
+        if (resetType === 'players' || resetType === 'full') {
+          const teams = await getDocs(collection(db, 'teams'));
+          for (const teamDoc of teams.docs) {
+            const players = await getDocs(collection(db, `teams/${teamDoc.id}/squad`));
+            for (const playerDoc of players.docs) {
+              if (resetType === 'full') {
+                 batch.delete(playerDoc.ref);
+              } else {
+                 batch.update(playerDoc.ref, {
+                   runs: 0, wickets: 0, mvpPoints: 0,
+                   careerStats: {
+                      matches: 0, innings: 0, runs: 0, balls: 0, wickets: 0, overs: 0, runsConceded: 0, highestScore: 0,
+                      bestBowlingWickets: 0, bestBowlingRuns: 0, thirties: 0, fifties: 0, hundreds: 0, threeWicketHauls: 0, fiveWicketHauls: 0
+                   }
+                 });
+              }
             }
           }
         }
       }
 
       await batch.commit();
-      alert("Data reset successfully!");
+      alert("Season stored and progress reset!");
       setIsModalOpen(false);
-      window.location.reload(); // Hard refresh to reset state
+      window.location.reload();
     } catch (error) {
       console.error("Reset failed", error);
       alert("Failed to reset data.");
@@ -137,6 +181,24 @@ export default function Settings() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-[#151921] p-8 rounded-3xl border border-yellow-500/20 shadow-2xl space-y-6 md:col-span-2 relative overflow-hidden group">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-yellow-500/10 transition-all" />
+           <div className="flex items-center gap-3">
+              <Archive className="text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.3)]" size={20} />
+              <h4 className="text-sm font-black text-white uppercase tracking-widest">Seal Season</h4>
+           </div>
+           <p className="text-xs text-slate-400 leading-relaxed font-medium max-w-xl">
+             Officially conclude the current tournament. Standings will be recorded in the <span className="text-yellow-500">Hall of Fame</span>, winners will be immortalized, and match data will be wiped to prepare for the next season. 
+             <span className="block mt-2 text-rose-400/80 font-black uppercase tracking-widest text-[9px]">Note: Player rosters remain. Statistics are archived.</span>
+           </p>
+           <button 
+             onClick={() => { setResetType('archive'); setIsModalOpen(true); }}
+             className="w-full py-5 bg-gradient-to-tr from-yellow-500 to-orange-600 text-black rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-xl shadow-orange-500/20"
+           >
+             Seal the Season
+           </button>
+        </div>
+
         <div className="bg-[#151921] p-8 rounded-3xl border border-slate-800/60 shadow-2xl space-y-6">
            <div className="flex items-center gap-3">
               <RefreshCcw className="text-blue-500" size={20} />

@@ -92,24 +92,26 @@ export default function MatchSimulator() {
         const score1 = result.innings1!.score;
         const score2 = result.innings2!.score;
 
-        const nrr1 = calculateNRR(team1, score1, 20, score2, 20);
-        const nrr2 = calculateNRR(team2, score2, 20, score1, 20);
+        if (match.matchType === 'League') {
+          const nrr1 = calculateNRR(team1, score1, 20, score2, 20);
+          const nrr2 = calculateNRR(team2, score2, 20, score1, 20);
 
-        transaction.update(t1Ref, {
-          matches: increment(1),
-          wins: winnerId === team1.id ? increment(1) : increment(0),
-          losses: winnerId === team2.id ? increment(1) : increment(0),
-          points: winnerId === team1.id ? increment(2) : increment(0),
-          nrr: nrr1
-        });
+          transaction.update(t1Ref, {
+            matches: increment(1),
+            wins: winnerId === team1.id ? increment(1) : increment(0),
+            losses: winnerId === team2.id ? increment(1) : increment(0),
+            points: winnerId === team1.id ? increment(2) : increment(0),
+            nrr: nrr1
+          });
 
-        transaction.update(t2Ref, {
-          matches: increment(1),
-          wins: winnerId === team2.id ? increment(1) : increment(0),
-          losses: winnerId === team1.id ? increment(1) : increment(0),
-          points: winnerId === team2.id ? increment(2) : increment(0),
-          nrr: nrr2
-        });
+          transaction.update(t2Ref, {
+            matches: increment(1),
+            wins: winnerId === team2.id ? increment(1) : increment(0),
+            losses: winnerId === team1.id ? increment(1) : increment(0),
+            points: winnerId === team2.id ? increment(2) : increment(0),
+            nrr: nrr2
+          });
+        }
 
         // Update All Players Stats
         const allInningsStats = [
