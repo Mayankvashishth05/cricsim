@@ -255,15 +255,15 @@ export default function FixturesManagement() {
         )}
       </AnimatePresence>
 
-      <div className="bg-[#151921] rounded-[2rem] border border-slate-800/60 overflow-hidden shadow-2xl">
-        <table className="w-full text-left border-collapse">
+      <div className="bg-[#151921] rounded-[2rem] border border-slate-800/60 overflow-hidden shadow-2xl overflow-x-auto">
+        <table className="w-full text-left border-collapse table-fixed min-w-[800px]">
           <thead>
             <tr className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-800 bg-slate-800/20">
-              <th className="px-8 py-5">Index</th>
-              <th className="px-8 py-5">Combatants</th>
-              <th className="px-8 py-5">Class</th>
-              <th className="px-8 py-5">Status</th>
-              <th className="px-8 py-5 text-right">Operational Logic</th>
+              <th className="px-8 py-5 w-24">Index</th>
+              <th className="px-8 py-5 w-[40%]">Combatants</th>
+              <th className="px-8 py-5 w-32">Class</th>
+              <th className="px-8 py-5 w-32">Status</th>
+              <th className="px-8 py-5 text-right w-40">Operational Logic</th>
             </tr>
           </thead>
           <tbody className="text-sm">

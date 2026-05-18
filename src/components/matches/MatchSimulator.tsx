@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { Team, Player, Match, CommentaryEntry } from '../../types';
-import { Play, RotateCcw, Target, Trophy, Info } from 'lucide-react';
+import { Play, RotateCcw, Target, Trophy, Info, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { simulateMatch, calculateNRR } from '../../services/simulation';
 
@@ -22,6 +22,7 @@ export default function MatchSimulator() {
   const [selectedMatchId, setSelectedMatchId] = useState<string>('');
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<Partial<Match> | null>(null);
+  const [category, setCategory] = useState<'League' | 'Playoffs'>('League');
 
   useEffect(() => {
     const unsubTeams = onSnapshot(collection(db, 'teams'), (snap) => {
@@ -35,6 +36,10 @@ export default function MatchSimulator() {
     );
     return () => { unsubTeams(); unsubMatches(); };
   }, []);
+
+  const filteredMatches = matches.filter(m => 
+    category === 'League' ? m.matchType === 'League' : m.matchType !== 'League'
+  );
 
   const [liveCommentary, setLiveCommentary] = useState<CommentaryEntry[]>([]);
   const [currentBallIdx, setCurrentBallIdx] = useState(-1);
@@ -192,38 +197,58 @@ export default function MatchSimulator() {
                <RotateCcw className="w-5 h-5 text-yellow-500" />
                Select Fixture
              </h3>
-             <div className="space-y-3">
-               {matches.map(match => (
-                 <button
-                   key={match.id}
-                   onClick={() => setSelectedMatchId(match.id)}
-                   className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between group ${
-                     selectedMatchId === match.id 
-                     ? 'bg-yellow-500/5 border-yellow-500/30' 
-                     : 'bg-[#0B0E14] border-slate-800 hover:border-slate-700'
-                   }`}
+
+             {/* Category Selection */}
+             <div className="flex gap-2 mb-6">
+               <button 
+                 onClick={() => { setCategory('League'); setSelectedMatchId(''); }}
+                 className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                   category === 'League' 
+                   ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/10' 
+                   : 'bg-slate-800/40 text-slate-500 border border-slate-800 hover:bg-slate-800'
+                 }`}
+               >
+                 League
+               </button>
+               <button 
+                 onClick={() => { setCategory('Playoffs'); setSelectedMatchId(''); }}
+                 className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                   category === 'Playoffs' 
+                   ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/10' 
+                   : 'bg-slate-800/40 text-slate-500 border border-slate-800 hover:bg-slate-800'
+                 }`}
+               >
+                 Playoffs
+               </button>
+             </div>
+
+             <div className="space-y-4">
+               <div className="relative group">
+                 <select
+                   value={selectedMatchId}
+                   onChange={(e) => setSelectedMatchId(e.target.value)}
+                   className="w-full bg-[#0B0E14] border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold text-sm focus:outline-none focus:border-yellow-500/30 transition-all appearance-none cursor-pointer"
                  >
-                   <div className="flex items-center gap-4">
-                      <div className="text-left">
-                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1.5">{match.matchType}</p>
-                        <p className="font-bold text-slate-200 group-hover:text-white transition-colors">
-                          {teams.find(t => t.id === match.team1Id)?.name} <span className="text-rose-500/50 mx-1">VS</span> {teams.find(t => t.id === match.team2Id)?.name}
-                        </p>
-                      </div>
-                   </div>
-                   <div className={`p-2 rounded-xl transition-all ${
-                     selectedMatchId === match.id 
-                     ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' 
-                     : 'bg-slate-800 text-slate-500 group-hover:bg-slate-700 group-hover:text-slate-300'
-                   }`}>
-                      <Play size={16} fill="currentColor" />
-                   </div>
-                 </button>
-               ))}
-               {matches.length === 0 && (
-                 <div className="text-center py-12 bg-slate-900/20 rounded-2xl border border-dashed border-slate-800">
-                    <p className="text-[10px] items-center gap-2 font-black text-slate-600 uppercase tracking-widest leading-relaxed">
-                      No active fixtures detected.<br/>Awaiting scheduling in Fixtures portal.
+                   <option value="" disabled className="text-slate-600">Choose a {category} match...</option>
+                   {filteredMatches.map(match => {
+                     const t1 = teams.find(t => t.id === match.team1Id);
+                     const t2 = teams.find(t => t.id === match.team2Id);
+                     return (
+                       <option key={match.id} value={match.id} className="bg-[#151921]">
+                         {match.matchType}: {t1?.name} vs {t2?.name}
+                       </option>
+                     );
+                   })}
+                 </select>
+                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                    <ChevronDown size={18} />
+                 </div>
+               </div>
+
+               {filteredMatches.length === 0 && (
+                 <div className="text-center py-10 bg-slate-900/20 rounded-2xl border border-dashed border-slate-800">
+                    <p className="text-[9px] items-center gap-2 font-black text-slate-600 uppercase tracking-widest leading-relaxed px-4">
+                      No active {category.toLowerCase()} fixtures detected.<br/>Check the Fixtures portal to schedule.
                     </p>
                  </div>
                )}

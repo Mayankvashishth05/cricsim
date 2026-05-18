@@ -116,14 +116,14 @@ export default function Scorecard({ match, teams, onClose }: ScorecardProps) {
                       <h3 className="text-xs font-black text-white uppercase tracking-widest italic">{battingTeam?.name} Batting Operations</h3>
                    </div>
                    <div className="bg-[#0B0E14] rounded-2x border border-slate-800/60 overflow-hidden">
-                      <table className="w-full text-left">
+                      <table className="w-full text-left table-fixed">
                          <thead>
                             <tr className="bg-slate-800/30 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                               <th className="px-6 py-4">Batter</th>
-                               <th className="px-6 py-4">Status</th>
-                               <th className="px-6 py-4 text-center">Runs</th>
-                               <th className="px-6 py-4 text-center">Balls</th>
-                               <th className="px-6 py-4 text-center">SR</th>
+                               <th className="px-6 py-4 w-[35%]">Batter</th>
+                               <th className="px-6 py-4 w-[30%]">Status</th>
+                               <th className="px-6 py-4 text-center w-[12%]">Runs</th>
+                               <th className="px-6 py-4 text-center w-[12%]">Balls</th>
+                               <th className="px-6 py-4 text-center w-[11%]">SR</th>
                             </tr>
                          </thead>
                          <tbody className="text-xs">
@@ -148,14 +148,14 @@ export default function Scorecard({ match, teams, onClose }: ScorecardProps) {
                       <h3 className="text-xs font-black text-white uppercase tracking-widest italic">{bowlingTeam?.name} Bowling Deployment</h3>
                    </div>
                    <div className="bg-[#0B0E14] rounded-2x border border-slate-800/60 overflow-hidden">
-                      <table className="w-full text-left">
+                      <table className="w-full text-left table-fixed">
                          <thead>
                             <tr className="bg-slate-800/30 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                               <th className="px-6 py-4">Bowler</th>
-                               <th className="px-6 py-4 text-center">Overs</th>
-                               <th className="px-6 py-4 text-center">Runs</th>
-                               <th className="px-6 py-4 text-center">Wkts</th>
-                               <th className="px-6 py-4 text-center">Econ</th>
+                               <th className="px-6 py-4 w-[35%]">Bowler</th>
+                               <th className="px-6 py-4 text-center w-[15%]">Overs</th>
+                               <th className="px-6 py-4 text-center w-[15%]">Runs</th>
+                               <th className="px-6 py-4 text-center w-[15%]">Wkts</th>
+                               <th className="px-6 py-4 text-center w-[20%]">Econ</th>
                             </tr>
                          </thead>
                          <tbody className="text-xs">

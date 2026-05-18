@@ -278,15 +278,15 @@ export default function Dashboard() {
               )}
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse table-fixed min-w-[600px]">
                 <thead>
                   <tr className="text-slate-500 text-[10px] uppercase tracking-[0.2em] border-b border-slate-800 bg-slate-800/20">
-                    <th className="px-6 py-4 font-black">Team</th>
-                    <th className="px-4 py-4 font-black text-center">P</th>
-                    <th className="px-4 py-4 font-black text-center">W</th>
-                    <th className="px-4 py-4 font-black text-center text-rose-500">L</th>
-                    <th className="px-6 py-4 font-black text-right">NRR</th>
-                    <th className="px-6 py-4 font-black text-center text-yellow-500">Pts</th>
+                    <th className="px-6 py-4 font-black w-[35%]">Team</th>
+                    <th className="px-4 py-4 font-black text-center w-[10%]">P</th>
+                    <th className="px-4 py-4 font-black text-center w-[10%]">W</th>
+                    <th className="px-4 py-4 font-black text-center text-rose-500 w-[10%]">L</th>
+                    <th className="px-6 py-4 font-black text-right w-24">NRR</th>
+                    <th className="px-6 py-4 font-black text-center text-yellow-500 w-20">Pts</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm">
